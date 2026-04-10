@@ -131,9 +131,9 @@ class Login extends \App\Modules\Common\Controllers\BaseController
 			return;
 		}
 		
-		// Cek user berdasarkan username
-		$username = $this->request->getPost('username');
-		$user = $this->model->checkUser($username);
+		// Cek user berdasarkan email atau username
+		$identifier = trim((string) $this->request->getPost('username'));
+		$user = $this->model->checkUser($identifier);
 		
 		$error = false;
 		$message = '';
@@ -142,13 +142,13 @@ class Login extends \App\Modules\Common\Controllers\BaseController
 			// Cek apakah ada username duplikat
 			$cekUsername = $this->model->checkUsername($user['username']);
 			if ($cekUsername > 1) {
-				$message = 'Maaf, username yang Anda masukkan sudah terdaftar. Silakan hubungi admin untuk mendapatkan username yang baru.';
+				$message = 'Terjadi duplikasi akun untuk email atau username ini. Silakan hubungi administrator.';
 				$error = true;
 			}
 			
 			// Cek apakah user sudah verified
 			if (!$error && $user['verified'] == 0) {
-				$message = 'Username belum aktif';
+				$message = 'Akun belum aktif';
 				$error = true;
 			}
 			
@@ -165,7 +165,7 @@ class Login extends \App\Modules\Common\Controllers\BaseController
 				$error = true;
 			}
 		} else {
-			$message = 'Username tidak ditemukan';
+			$message = 'Email tidak ditemukan';
 			$error = true;
 		}
 

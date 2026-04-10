@@ -55,7 +55,7 @@ if (!empty($js)) {
 					</span>
 				</div>
 		
-				<input type="text" name="username" value="<?= esc(old('username', '')) ?>" class="form-control login-input" placeholder="Username" aria-label="Username" aria-describedby="basic-addon1" required>
+				<input type="text" name="username" value="<?= esc(old('username', '')) ?>" class="form-control login-input" placeholder="Email" aria-label="Email" aria-describedby="basic-addon1" autocomplete="username" required>
 			</div>
 			<div class="input-group mb-3">
 				<div class="input-group-prepend login-input">
@@ -77,10 +77,7 @@ if (!empty($js)) {
 			</div>
 			<div class="login-footer">
 				<p>Lupa Password? <a href="<?=$config->baseURL?>recovery">Request reset password</a></p>
-				<?php if ($setting_registrasi['enable'] == 'Y') { ?>
-					<p>Belum punya akun? <a href="<?=$config->baseURL?>register">Daftar akun</a></p>
-				<?php }?>
-				<p>Tidak menerima link aktivasi? <a href="<?=$config->baseURL?>register/resendlink">Kirim ulang</a></p>
+				<p>Belum punya akun? <a href="<?=$config->baseURL?>register">Daftar akun</a></p>
 			</div>
 		</div>
 		<div class="copyright">

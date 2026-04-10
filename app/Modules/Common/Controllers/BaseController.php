@@ -320,6 +320,11 @@ class BaseController extends Controller
 
 	protected function renderViewFile($viewFile, $data = false)
 	{
+		echo $this->fetchViewFile($viewFile, $data);
+	}
+
+	protected function fetchViewFile($viewFile, $data = false)
+	{
 		$moduleBasePath = $this->getModuleBasePath();
 		$normalizedView = str_replace('\\', '/', ltrim($viewFile, '/'));
 		$viewData = is_array($data) ? $data : [];
@@ -327,12 +332,14 @@ class BaseController extends Controller
 		if ($moduleBasePath) {
 			$moduleViewPath = $moduleBasePath . str_replace('/', DIRECTORY_SEPARATOR, $normalizedView);
 			if (is_file($moduleViewPath)) {
-				echo view($moduleViewPath, $viewData);
-				return;
+				extract($viewData, EXTR_SKIP);
+				ob_start();
+				include $moduleViewPath;
+				return ob_get_clean();
 			}
 		}
 
-		echo view($normalizedView, $viewData);
+		return view($normalizedView, $viewData);
 	}
 	
 	protected function view($file, $data = false, $file_only = false) 

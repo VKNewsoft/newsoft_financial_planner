@@ -463,13 +463,21 @@ class BaseModel extends \CodeIgniter\Model
 		return $this->db->query($sql, $id)->getResultArray();
 	}
 	
-	public function checkUser($username) 
+	public function checkUser($identifier) 
 	{
-		$user = $this->db->table('core_user')
-                    ->where('isDeleted', 0)
-                    ->where('username', $username)
-                    ->get()
-                    ->getRowArray();
+		$identifier = trim((string) $identifier);
+		if ($identifier === '') {
+			return null;
+		}
+
+		$builder = $this->db->table('core_user')
+					->where('isDeleted', 0)
+					->groupStart()
+						->where('username', $identifier)
+						->orWhere('email', $identifier)
+					->groupEnd();
+
+		$user = $builder->get()->getRowArray();
 
 		if (!$user) {
 			return null;
