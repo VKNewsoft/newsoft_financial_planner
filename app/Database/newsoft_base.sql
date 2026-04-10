@@ -615,7 +615,8 @@ CREATE TABLE `core_role` (
 /*Data for the table `core_role` */
 
 insert  into `core_role`(`id_role`,`id_module`,`sistem`,`nama_role`,`judul_role`,`keterangan`) values 
-(1,123,'core','Administrator','Administrator','Super Administrator');
+(1,123,'core','Administrator','Administrator','Super Administrator'),
+(2,124,'core','Pengguna Biasa','Pengguna Biasa','Role default untuk registrasi pengguna baru');
 
 /*Table structure for table `core_role_module_permission` */
 
@@ -791,10 +792,10 @@ insert  into `core_setting`(`type`,`param`,`value`) values
 ('piutang','notifikasi_periode','7'),
 ('piutang','notifikasi_show','N'),
 ('piutang','piutang_periode','30'),
-('register','enable','N'),
+('register','enable','Y'),
 ('register','id_module','46'),
 ('register','id_role','2'),
-('register','metode_aktivasi','email'),
+('register','metode_aktivasi','langsung'),
 ('stok','dashboard_show','N'),
 ('stok','notifikasi_show','N');
 
@@ -947,6 +948,8 @@ CREATE TABLE `personal_cash_flow_transaction` (
   `isDeleted` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_transaction`),
   KEY `pcf_transaction_user` (`id_user`),
+  KEY `pcf_transaction_user_period` (`id_user`,`isDeleted`,`transaction_date`),
+  KEY `pcf_transaction_user_type_period` (`id_user`,`transaction_type`,`isDeleted`,`transaction_date`),
   KEY `pcf_transaction_category` (`id_category`),
   KEY `pcf_transaction_input_user` (`id_user_input`),
   KEY `pcf_transaction_update_user` (`id_user_update`),

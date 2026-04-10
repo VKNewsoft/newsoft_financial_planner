@@ -8,6 +8,174 @@ namespace App\Modules\PersonalCashFlow\Models;
 
 class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 {
+	private function getTransactionListAllowedColumns(): array
+	{
+		return array_keys($this->getTransactionListColumnMap());
+	}
+
+	private function getTransactionListColumnMap(): array
+	{
+		return [
+			'transaction_date' => 'a.transaction_date',
+			'transaction_type' => 'a.transaction_type',
+			'category_name' => 'c.category_name',
+			'description' => 'a.description',
+			'notes' => 'a.notes',
+			'nominal' => 'a.nominal',
+			'id_transaction' => 'a.id_transaction',
+		];
+	}
+
+	private function getTransactionListBuilder(string $period, string $type = '')
+	{
+		[$startDate, $endDate] = $this->getPeriodRange($period);
+
+		$builder = $this->db->table('personal_cash_flow_transaction a')
+			->select('a.*, c.category_name, c.color, c.is_default')
+			->join('personal_cash_flow_category c', 'c.id_category = a.id_category', 'left')
+			->where('a.id_user', $this->getCurrentUserId())
+			->where('a.isDeleted', 0)
+			->where('a.transaction_date >=', $startDate)
+			->where('a.transaction_date <=', $endDate);
+
+		if ($type) {
+			$builder->where('a.transaction_type', $type);
+		}
+
+		return $builder;
+	}
+
+	private function getDatatableRequestedColumns(): array
+	{
+		$requestedColumns = $this->request->getPost('columns');
+		if (!is_array($requestedColumns)) {
+			return [];
+		}
+
+		$allowedColumns = $this->getTransactionListAllowedColumns();
+		$result = [];
+
+		foreach ($requestedColumns as $column) {
+			$columnName = (string) ($column['data'] ?? '');
+			if ($columnName !== '' && in_array($columnName, $allowedColumns, true)) {
+				$result[] = $columnName;
+			}
+		}
+
+		return array_values(array_unique($result));
+	}
+
+	private function applyTransactionDatatableSearch($builder): void
+	{
+		$globalSearch = trim((string) ($this->request->getPost('search')['value'] ?? ''));
+		$descriptionSearch = trim((string) ($this->request->getPost('description_filter') ?? ''));
+		$categorySearch = trim((string) ($this->request->getPost('category_filter') ?? ''));
+
+		if ($globalSearch !== '') {
+			$searchColumns = $this->getDatatableRequestedColumns();
+			if (!$searchColumns) {
+				$searchColumns = ['category_name', 'description', 'notes'];
+			}
+
+			$columnMap = $this->getTransactionListColumnMap();
+
+			$builder->groupStart();
+			foreach ($searchColumns as $index => $columnAlias) {
+				$column = $columnMap[$columnAlias] ?? null;
+				if (!$column) {
+					continue;
+				}
+
+				if ($index === 0) {
+					$builder->like($column, $globalSearch);
+				} else {
+					$builder->orLike($column, $globalSearch);
+				}
+			}
+			$builder->groupEnd();
+		}
+
+		if ($descriptionSearch !== '') {
+			$builder->groupStart()
+				->like('a.description', $descriptionSearch)
+				->orLike('a.notes', $descriptionSearch)
+			->groupEnd();
+		}
+
+		if ($categorySearch !== '') {
+			if (ctype_digit($categorySearch)) {
+				$builder->where('a.id_category', (int) $categorySearch);
+			} else {
+				$builder->like('c.category_name', $categorySearch);
+			}
+		}
+	}
+
+	private function applyTransactionDatatableOrderAndLimit($builder): void
+	{
+		$columns = $this->request->getPost('columns');
+		$orderData = $this->request->getPost('order');
+		$allowedColumns = $this->getTransactionListAllowedColumns();
+		$columnMap = $this->getTransactionListColumnMap();
+		$orderColumn = 'a.transaction_date';
+		$orderDirection = 'DESC';
+
+		if (is_array($orderData) && !empty($orderData[0]) && is_array($columns)) {
+			$columnIndex = (int) ($orderData[0]['column'] ?? 0);
+			$direction = strtoupper((string) ($orderData[0]['dir'] ?? 'DESC'));
+			$requestedColumn = (string) ($columns[$columnIndex]['data'] ?? '');
+
+			if (in_array($requestedColumn, $allowedColumns, true)) {
+				$orderColumn = $columnMap[$requestedColumn] ?? $orderColumn;
+			}
+
+			if ($direction === 'ASC') {
+				$orderDirection = 'ASC';
+			}
+		}
+
+		$start = max(0, (int) ($this->request->getPost('start') ?? 0));
+		$length = (int) ($this->request->getPost('length') ?? 10);
+		if ($length < 1) {
+			$length = 10;
+		}
+
+		$builder
+			->orderBy($orderColumn, $orderDirection)
+			->orderBy('a.id_transaction', 'DESC')
+			->limit($length, $start);
+	}
+
+	private function applyTransactionListFilters($builder, string $descriptionFilter = '', string $categoryFilter = '', string $keyword = ''): void
+	{
+		$descriptionFilter = trim($descriptionFilter);
+		$categoryFilter = trim($categoryFilter);
+		$keyword = trim($keyword);
+
+		if ($keyword !== '') {
+			$builder->groupStart()
+				->like('a.description', $keyword)
+				->orLike('a.notes', $keyword)
+				->orLike('c.category_name', $keyword)
+			->groupEnd();
+		}
+
+		if ($descriptionFilter !== '') {
+			$builder->groupStart()
+				->like('a.description', $descriptionFilter)
+				->orLike('a.notes', $descriptionFilter)
+			->groupEnd();
+		}
+
+		if ($categoryFilter !== '') {
+			if (ctype_digit($categoryFilter)) {
+				$builder->where('a.id_category', (int) $categoryFilter);
+			} else {
+				$builder->like('c.category_name', $categoryFilter);
+			}
+		}
+	}
+
 	private function getCurrentUserId(): int
 	{
 		return (int) ($this->session->get('user')['id_user'] ?? 0);
@@ -74,6 +242,16 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 	public function getSelectedKeyword(): string
 	{
 		return trim((string) ($this->request->getGet('keyword') ?? ''));
+	}
+
+	public function getSelectedDescriptionFilter(): string
+	{
+		return trim((string) ($this->request->getPost('description_filter') ?? $this->request->getGet('description_filter') ?? ''));
+	}
+
+	public function getSelectedCategoryFilter(): string
+	{
+		return trim((string) ($this->request->getPost('category_filter') ?? $this->request->getGet('category_filter') ?? ''));
 	}
 
 	private function getPeriodRange(string $period): array
@@ -277,19 +455,7 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 
 	public function getTransactions(string $period, string $type = '', string $keyword = ''): array
 	{
-		[$startDate, $endDate] = $this->getPeriodRange($period);
-
-		$builder = $this->db->table('personal_cash_flow_transaction a')
-			->select('a.*, c.category_name, c.color, c.is_default')
-			->join('personal_cash_flow_category c', 'c.id_category = a.id_category', 'left')
-			->where('a.id_user', $this->getCurrentUserId())
-			->where('a.isDeleted', 0)
-			->where('a.transaction_date >=', $startDate)
-			->where('a.transaction_date <=', $endDate);
-
-		if ($type) {
-			$builder->where('a.transaction_type', $type);
-		}
+		$builder = $this->getTransactionListBuilder($period, $type);
 
 		if ($keyword !== '') {
 			$builder->groupStart()
@@ -304,6 +470,56 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			->orderBy('a.id_transaction', 'DESC')
 			->get()
 			->getResultArray();
+	}
+
+	public function countTransactions(string $period, string $type = ''): int
+	{
+		return $this->getTransactionListBuilder($period, $type)->countAllResults();
+	}
+
+	public function getTransactionListDataTable(string $period, string $type = ''): array
+	{
+		$countBuilder = $this->getTransactionListBuilder($period, $type);
+		$this->applyTransactionDatatableSearch($countBuilder);
+		$totalFiltered = $countBuilder->countAllResults();
+
+		$dataBuilder = $this->getTransactionListBuilder($period, $type);
+		$this->applyTransactionDatatableSearch($dataBuilder);
+		$this->applyTransactionDatatableOrderAndLimit($dataBuilder);
+		$data = $dataBuilder->get()->getResultArray();
+
+		return [
+			'data' => $data,
+			'total_filtered' => $totalFiltered,
+		];
+	}
+
+	public function getTransactionListPage(string $period, string $type = '', int $page = 1, int $perPage = 8, string $keyword = '', string $descriptionFilter = '', string $categoryFilter = ''): array
+	{
+		$page = max(1, $page);
+		$perPage = max(1, min(20, $perPage));
+		$offset = ($page - 1) * $perPage;
+
+		$countBuilder = $this->getTransactionListBuilder($period, $type);
+		$this->applyTransactionListFilters($countBuilder, $descriptionFilter, $categoryFilter, $keyword);
+		$totalFiltered = $countBuilder->countAllResults();
+
+		$dataBuilder = $this->getTransactionListBuilder($period, $type);
+		$this->applyTransactionListFilters($dataBuilder, $descriptionFilter, $categoryFilter, $keyword);
+		$data = $dataBuilder
+			->orderBy('a.transaction_date', 'DESC')
+			->orderBy('a.id_transaction', 'DESC')
+			->limit($perPage, $offset)
+			->get()
+			->getResultArray();
+
+		return [
+			'data' => $data,
+			'page' => $page,
+			'per_page' => $perPage,
+			'total_filtered' => $totalFiltered,
+			'has_more' => ($offset + count($data)) < $totalFiltered,
+		];
 	}
 
 	public function getTransactionsByIds(array $ids): array

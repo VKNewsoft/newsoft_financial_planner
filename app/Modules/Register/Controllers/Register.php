@@ -32,6 +32,7 @@ class Register extends \App\Modules\Common\Controllers\BaseController
 
 		$this->addJs($this->config->baseURL . 'public/vendors/jquery.pwstrength.bootstrap/pwstrength-bootstrap.min.js');
 		$this->addJs($this->config->baseURL . 'public/themes/modern/js/password-meter.js');
+		$this->addJs($this->config->baseURL . 'public/themes/modern/js/register.js');
 		
 	}
 	
@@ -43,6 +44,7 @@ class Register extends \App\Modules\Common\Controllers\BaseController
 	{
 		$this->mustNotLoggedIn();
 		$this->data['title'] = 'Register Akun';
+		$this->data['desc'] = 'Lengkapi data dasar untuk membuat akun baru.';
 		$message = [];
 		$error = false;
 		
@@ -74,7 +76,7 @@ class Register extends \App\Modules\Common\Controllers\BaseController
 		}
 		
 		$this->data['message'] = $message;
-		$this->data['style'] = ' style="max-width:500px; margin-top:50px"';
+		$this->data['style'] = ' style="max-width:460px; margin-top:24px"';
 		return view('themes/modern/register/' . $file, $this->data);
 	}
 	
@@ -154,49 +156,7 @@ class Register extends \App\Modules\Common\Controllers\BaseController
 	 */
 	public function resendlink() 
 	{
-		$this->data['title'] = 'Kirim Ulang Link Aktivasi Akun';
-		$message = [];
-		$error = false;
-		
-		helper('registrasi');
-		$settingRegister = $this->model->getSettingRegistrasi();
-		
-		// Cek metode aktivasi
-		if ($settingRegister['metode_aktivasi'] != 'email') {
-			$emailConfig = new \Config\EmailConfig;
-			$message['status'] = 'error';
-			$message['message'] = 'Metode aktivasi yang digunakan bukan melalui email. Untuk mengaktifkan akun, silakan hubungi administrator di: <a href="mailto:' . $emailConfig->emailSupport . '" title="Hubungi Support">' . $emailConfig->emailSupport . '</a>';
-		
-		} else {
-			if ($this->request->getPost('submit')) 
-			{
-				// Validasi form
-				$formError = $this->validateFormResendlink();
-				
-				$message['status'] = 'error';
-				if ($formError) {
-					$message['message'] = $formError;
-					$error = true;
-				}
-
-				// Submit data
-				if (!$error) {
-					$message = $this->model->resendLink();
-					if ($message['status'] == 'error') {
-						$error = true;
-					}
-				}
-			}
-		}
-		
-		// Tampilkan form atau success message
-		$file = 'form-resendlink.php';
-		if ($settingRegister['metode_aktivasi'] != 'email' || (!$error && $this->request->getPost('submit'))) {
-			$file = 'show_message.php';
-		}
-		
-		$this->data['message'] = $message;
-		return view('themes/modern/register/' . $file, $this->data);
+		return redirect()->to($this->config->baseURL . 'register');
 	}
 	
 	/**
@@ -218,11 +178,11 @@ class Register extends \App\Modules\Common\Controllers\BaseController
 			return [$validationMessage['message']];
 		}
 		
-		// Cek email belum diaktifkan
+		// Cek email existing
 		$email = trim($this->request->getPost('email'));
 		if ($email) {
 			if ($this->model->getUserByEmail($email)) {
-				$error['message'] = 'Email sudah terdaftar tetapi belum diaktifkan, silakan <a href="' . $this->config->baseURL . 'register/resendlink" title="Kirim ulang link aktivasi">aktifkan disini</a>';
+				$error['message'] = 'Email sudah terdaftar, silakan <a href="' . $this->config->baseURL . 'login" title="Login">login</a> menggunakan akun Anda';
 				return $error;
 			}
 		}

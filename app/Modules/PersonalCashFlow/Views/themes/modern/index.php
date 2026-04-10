@@ -4,6 +4,7 @@ helper('html');
 $summary = $summary ?? ['total_income' => 0, 'total_expense' => 0, 'balance' => 0, 'total_transaction' => 0];
 $overallSummary = $overallSummary ?? ['total_income' => 0, 'total_expense' => 0, 'balance' => 0, 'total_transaction' => 0];
 $expenseCategoryChart = $expenseCategoryChart ?? ['labels' => [], 'totals' => [], 'colors' => []];
+$transactionCategories = $transactionCategories ?? [];
 $typeLabels = ['income' => 'Pemasukan', 'expense' => 'Pengeluaran'];
 $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 ?>
@@ -68,32 +69,6 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 	border-radius: 50%;
 	display: inline-block;
 }
-.pcf-shell .pcf-mobile-list {
-	display: none;
-}
-.pcf-shell .pcf-mobile-item {
-	border: 1px solid #edf1ee;
-	border-radius: 1rem;
-	padding: 1rem;
-	background: #fff;
-	box-shadow: 0 8px 20px rgba(39, 60, 48, 0.05);
-}
-.pcf-shell .pcf-mobile-meta {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: .75rem;
-}
-.pcf-shell .pcf-mobile-meta span {
-	display: block;
-	font-size: .78rem;
-	color: #667085;
-	margin-bottom: .15rem;
-}
-.pcf-shell .pcf-mobile-actions {
-	display: flex;
-	gap: .5rem;
-	flex-wrap: wrap;
-}
 .pcf-shell .btn-soft {
 	border-radius: .7rem;
 	padding: .55rem .95rem;
@@ -120,6 +95,17 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 	flex-wrap: wrap;
 	align-items: center;
 }
+.pcf-shell .pcf-list-filter-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+	gap: .9rem;
+}
+.pcf-shell .pcf-table-tools {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
 .pcf-shell .pcf-check-col {
 	width: 42px;
 }
@@ -132,13 +118,118 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 	height: 1.1rem;
 	margin-top: 0;
 }
+.pcf-shell .pcf-table-card .dataTables_wrapper .dataTables_filter {
+	display: none;
+}
+.pcf-shell .pcf-table-card .dataTables_wrapper,
+.pcf-shell .pcf-table-card .dataTables_scroll,
+.pcf-shell .pcf-table-card .dataTables_scrollHead,
+.pcf-shell .pcf-table-card .dataTables_scrollBody,
+.pcf-shell .pcf-table-card .dataTables_scrollHeadInner,
+.pcf-shell .pcf-table-card .dataTables_scrollHeadInner table,
+.pcf-shell .pcf-table-card .dataTables_scrollBody table {
+	width: 100% !important;
+}
+.pcf-shell .pcf-table-card .dataTables_wrapper .dataTables_length {
+	margin-bottom: .75rem;
+}
+.pcf-shell .pcf-table-card .dataTables_wrapper .dataTables_info,
+.pcf-shell .pcf-table-card .dataTables_wrapper .dataTables_paginate {
+	margin-top: .9rem;
+}
+.pcf-shell #table-data {
+	width: 100% !important;
+}
+.pcf-shell #table-data thead th,
+.pcf-shell #table-data tbody td {
+	vertical-align: middle;
+	white-space: normal;
+}
+.pcf-shell #table-data td.text-end,
+.pcf-shell #table-data th.text-end {
+	white-space: nowrap;
+}
+.pcf-shell .pcf-loading-note {
+	font-size: .82rem;
+	color: #667085;
+}
+.pcf-shell .pcf-transaction-desc small {
+	display: block;
+	margin-top: .2rem;
+	line-height: 1.5;
+}
+.pcf-shell .btn-group.btn-group-sm > form {
+	margin: 0;
+}
+.pcf-shell .pcf-mobile-list {
+	display: none;
+}
+.pcf-shell .pcf-mobile-item {
+	border: 1px solid #e8ece8;
+	border-radius: 1rem;
+	padding: 1rem;
+	background: #fff;
+	box-shadow: 0 10px 22px rgba(39, 60, 48, 0.05);
+}
+.pcf-shell .pcf-mobile-item-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: .75rem;
+	margin-bottom: .8rem;
+}
+.pcf-shell .pcf-mobile-item-left {
+	display: flex;
+	gap: .75rem;
+	min-width: 0;
+}
+.pcf-shell .pcf-mobile-checkbox {
+	padding-top: .1rem;
+}
+.pcf-shell .pcf-mobile-title {
+	font-weight: 600;
+	line-height: 1.4;
+	margin-bottom: .25rem;
+}
+.pcf-shell .pcf-mobile-date {
+	font-size: .82rem;
+	color: #667085;
+}
+.pcf-shell .pcf-mobile-amount {
+	font-weight: 700;
+	text-align: right;
+	white-space: nowrap;
+}
+.pcf-shell .pcf-mobile-meta {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: .75rem;
+	margin-bottom: .85rem;
+}
+.pcf-shell .pcf-mobile-meta-label {
+	display: block;
+	font-size: .75rem;
+	color: #667085;
+	margin-bottom: .2rem;
+}
+.pcf-shell .pcf-mobile-actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: .6rem;
+}
+.pcf-shell .pcf-mobile-empty {
+	display: none;
+}
+.pcf-shell .pcf-mobile-loadmore {
+	display: none;
+}
 @media (max-width: 991.98px) {
 	.pcf-shell .pcf-hero {
 		padding: 1.2rem;
 	}
 }
 @media (max-width: 767.98px) {
-	.pcf-shell .pcf-desktop-table {
+	.pcf-shell .pcf-table-desktop {
 		display: none;
 	}
 	.pcf-shell .pcf-mobile-list {
@@ -164,6 +255,25 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 	.pcf-shell .pcf-bulk-actions > * {
 		width: 100%;
 	}
+	.pcf-shell .pcf-list-filter-grid {
+		grid-template-columns: 1fr;
+	}
+	.pcf-shell .btn-group.btn-group-sm {
+		display: flex;
+		flex-direction: column;
+		gap: .35rem;
+	}
+	.pcf-shell .btn-group.btn-group-sm > .btn,
+	.pcf-shell .btn-group.btn-group-sm > form .btn {
+		width: 100%;
+		border-radius: .55rem !important;
+	}
+	.pcf-shell .pcf-mobile-loadmore {
+		display: inline-flex;
+	}
+	.pcf-shell .pcf-mobile-empty.is-visible {
+		display: block;
+	}
 }
 </style>
 
@@ -188,11 +298,11 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 		<div class="card-body">
 			<form method="get">
 				<div class="row g-3 align-items-end">
-					<div class="col-md-3">
+					<div class="col-md-4">
 						<label class="form-label">Periode</label>
 						<input type="month" name="period" class="form-control" value="<?= esc($period) ?>">
 					</div>
-					<div class="col-md-3">
+					<div class="col-md-4">
 						<label class="form-label">Jenis</label>
 						<select name="type" class="form-select">
 							<option value="">Semua Jenis</option>
@@ -200,11 +310,7 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 							<option value="expense" <?= $type === 'expense' ? 'selected' : '' ?>>Pengeluaran</option>
 						</select>
 					</div>
-					<div class="col-md-4">
-						<label class="form-label">Cari</label>
-						<input type="text" name="keyword" class="form-control" value="<?= esc($keyword) ?>" placeholder="Kategori, deskripsi, atau catatan">
-					</div>
-					<div class="col-md-2 d-grid">
+					<div class="col-md-4 d-grid">
 						<button type="submit" class="btn btn-primary btn-soft">Terapkan</button>
 					</div>
 				</div>
@@ -300,18 +406,16 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 		<div class="card-header bg-white border-0 pt-4 px-4 d-flex flex-column flex-md-row justify-content-between gap-2">
 			<div>
 				<h5 class="mb-1">Daftar Transaksi</h5>
-				<p class="mb-0 text-muted">Desktop memakai tabel, mobile otomatis berubah menjadi kartu yang lebih mudah dipindai.</p>
+				<p class="mb-0 text-muted">Daftar transaksi dimuat per halaman dengan server-side DataTable supaya tetap ringan saat data bertambah besar.</p>
 			</div>
-			<div class="text-muted small align-self-md-center"><?= count($transactions) ?> transaksi</div>
+			<div class="text-muted small align-self-md-center"><?= number_format((int) $transactionCount, 0, ',', '.') ?> transaksi pada periode ini</div>
 		</div>
 		<div class="card-body px-4 pb-4">
-			<?php if (!$transactions): ?>
-				<div class="alert alert-light border mb-0">Belum ada transaksi pada filter yang dipilih.</div>
-			<?php else: ?>
+			<div class="pcf-table-tools">
 				<div class="pcf-bulk-toolbar">
 					<div>
 						<div class="fw-semibold">Bulk Update Kategori</div>
-						<div class="small text-muted">Pilih beberapa transaksi dengan jenis yang sama, lalu ubah kategorinya sekaligus.</div>
+						<div class="small text-muted">Bekerja untuk baris yang dipilih di halaman aktif DataTable.</div>
 					</div>
 					<div class="pcf-bulk-actions">
 						<select id="bulk-category-select" class="form-select" disabled>
@@ -321,102 +425,77 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 					</div>
 				</div>
 
-				<div class="table-responsive pcf-desktop-table">
-					<table class="table table-striped align-middle mb-0">
-						<thead>
-							<tr>
-								<th class="pcf-check-col text-center"><input type="checkbox" class="form-check-input bulk-selector" id="select-all-transactions"></th>
-								<th>Tanggal</th>
-								<th>Jenis</th>
-								<th>Kategori</th>
-								<th>Deskripsi</th>
-								<th class="text-end">Nominal</th>
-								<th class="text-end">Aksi</th>
-							</tr>
-						</thead>
-						<tbody>
-							<?php foreach ($transactions as $transaction): ?>
-								<tr>
-									<td class="text-center">
-										<input type="checkbox" class="form-check-input bulk-selector transaction-selector" value="<?= (int) $transaction['id_transaction'] ?>" data-type="<?= esc($transaction['transaction_type']) ?>">
-									</td>
-									<td><?= esc($transaction['transaction_date']) ?></td>
-									<td><span class="badge text-bg-<?= $typeBadges[$transaction['transaction_type']] ?? 'secondary' ?>"><?= esc($typeLabels[$transaction['transaction_type']] ?? $transaction['transaction_type']) ?></span></td>
-									<td>
-										<span class="pcf-category-chip">
-											<span class="pcf-category-dot" style="background: <?= esc($transaction['color'] ?: '#6c757d') ?>"></span>
-											<?= esc($transaction['category_name']) ?>
-										</span>
-									</td>
-									<td>
-										<div class="fw-semibold"><?= esc($transaction['description']) ?></div>
-										<?php if (!empty($transaction['notes'])): ?>
-											<small class="text-muted"><?= esc($transaction['notes']) ?></small>
-										<?php endif; ?>
-									</td>
-									<td class="text-end fw-semibold <?= $transaction['transaction_type'] === 'income' ? 'text-success' : 'text-danger' ?>">
-										Rp <?= number_format((float) $transaction['nominal'], 0, ',', '.') ?>
-									</td>
-									<td class="text-end">
-										<div class="btn-group btn-group-sm">
-											<button type="button" class="btn btn-success btn-edit-transaction" data-id="<?= (int) $transaction['id_transaction'] ?>">Edit</button>
-											<form method="post" action="<?= base_url('personal-cash-flow/delete') ?>" onsubmit="return confirm('Hapus transaksi ini?');">
-												<input type="hidden" name="id" value="<?= (int) $transaction['id_transaction'] ?>">
-												<input type="hidden" name="delete" value="1">
-												<button type="submit" class="btn btn-danger">Hapus</button>
-											</form>
-										</div>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						</tbody>
-					</table>
-				</div>
-
-				<div class="pcf-mobile-list">
-					<?php foreach ($transactions as $transaction): ?>
-						<div class="pcf-mobile-item">
-							<div class="d-flex justify-content-between align-items-start gap-2 mb-3">
-								<div>
-									<div class="mb-2">
-										<input type="checkbox" class="form-check-input bulk-selector transaction-selector" value="<?= (int) $transaction['id_transaction'] ?>" data-type="<?= esc($transaction['transaction_type']) ?>">
-									</div>
-									<div class="fw-semibold mb-1"><?= esc($transaction['description']) ?></div>
-									<div class="small text-muted"><?= esc($transaction['transaction_date']) ?></div>
-								</div>
-								<div class="text-end">
-									<div class="badge text-bg-<?= $typeBadges[$transaction['transaction_type']] ?? 'secondary' ?>"><?= esc($typeLabels[$transaction['transaction_type']] ?? $transaction['transaction_type']) ?></div>
-									<div class="fw-semibold mt-2 <?= $transaction['transaction_type'] === 'income' ? 'text-success' : 'text-danger' ?>">Rp <?= number_format((float) $transaction['nominal'], 0, ',', '.') ?></div>
-								</div>
+				<div class="pcf-filter-card border-0 shadow-none mb-0">
+					<div class="card-body p-0">
+						<div class="pcf-list-filter-grid">
+							<div>
+								<label class="form-label">Search realtime</label>
+								<input type="text" id="transaction-search" class="form-control" placeholder="Cari kategori, deskripsi, atau catatan">
 							</div>
-							<div class="pcf-mobile-meta mb-3">
-								<div>
-									<span>Kategori</span>
-									<div class="pcf-category-chip">
-										<span class="pcf-category-dot" style="background: <?= esc($transaction['color'] ?: '#6c757d') ?>"></span>
-										<?= esc($transaction['category_name']) ?>
-									</div>
-								</div>
-								<div>
-									<span>Catatan</span>
-									<div><?= esc($transaction['notes'] ?: '-') ?></div>
-								</div>
+							<div>
+								<label class="form-label">Filter kategori</label>
+								<select id="transaction-category-filter" class="form-select">
+									<option value="">Semua kategori</option>
+									<?php foreach ($transactionCategories as $category): ?>
+										<option value="<?= (int) $category['id_category'] ?>"><?= esc($category['category_name']) ?></option>
+									<?php endforeach; ?>
+								</select>
 							</div>
-							<div class="pcf-mobile-actions">
-								<button type="button" class="btn btn-success btn-sm btn-soft btn-edit-transaction flex-fill" data-id="<?= (int) $transaction['id_transaction'] ?>">Edit</button>
-								<form method="post" action="<?= base_url('personal-cash-flow/delete') ?>" class="flex-fill" onsubmit="return confirm('Hapus transaksi ini?');">
-									<input type="hidden" name="id" value="<?= (int) $transaction['id_transaction'] ?>">
-									<input type="hidden" name="delete" value="1">
-									<button type="submit" class="btn btn-danger btn-sm btn-soft w-100">Hapus</button>
-								</form>
+							<div>
+								<label class="form-label">Filter deskripsi</label>
+								<input type="text" id="transaction-description-filter" class="form-control" placeholder="Contoh: makan, listrik, transfer">
 							</div>
 						</div>
-					<?php endforeach; ?>
+						<div class="pcf-loading-note mt-2">Filter daftar transaksi ini independen dan tidak mengubah summary atau chart dashboard.</div>
+					</div>
 				</div>
-			<?php endif; ?>
+			</div>
+
+			<div class="table-responsive pcf-table-desktop">
+				<table class="table table-striped align-middle mb-0" id="table-data">
+					<thead>
+						<tr>
+							<th class="pcf-check-col text-center"><input type="checkbox" class="form-check-input bulk-selector" id="select-all-transactions"></th>
+							<th>Tanggal</th>
+							<th>Jenis</th>
+							<th>Kategori</th>
+							<th>Deskripsi</th>
+							<th class="text-end">Nominal</th>
+							<th class="text-end">Aksi</th>
+						</tr>
+					</thead>
+				</table>
+			</div>
+
+			<div class="pcf-mobile-list-wrapper">
+				<div id="pcf-mobile-list" class="pcf-mobile-list"></div>
+				<div id="pcf-mobile-empty" class="alert alert-light border mb-0 pcf-mobile-empty">Belum ada transaksi pada filter yang dipilih.</div>
+				<div class="text-center mt-3">
+					<button type="button" id="pcf-mobile-loadmore" class="btn btn-outline-primary btn-soft pcf-mobile-loadmore">Load More</button>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
+
+<div id="dataTables-url" class="d-none"><?= base_url('personal-cash-flow/getDataDT?period=' . urlencode($period) . '&type=' . urlencode($type)) ?></div>
+<div id="pcf-mobile-data-url" class="d-none"><?= base_url('personal-cash-flow/ajaxGetTransactionMobileList?period=' . urlencode($period) . '&type=' . urlencode($type)) ?></div>
+<script type="application/json" id="dataTables-column"><?= json_encode([
+	['data' => 'ignore_select', 'orderable' => false, 'searchable' => false, 'className' => 'text-center'],
+	['data' => 'transaction_date'],
+	['data' => 'transaction_type'],
+	['data' => 'category_name'],
+	['data' => 'description'],
+	['data' => 'nominal', 'className' => 'text-end'],
+	['data' => 'ignore_search_action', 'orderable' => false, 'searchable' => false, 'className' => 'text-end'],
+], JSON_UNESCAPED_SLASHES) ?></script>
+<script type="application/json" id="dataTables-setting"><?= json_encode([
+	'scrollX' => true,
+	'pageLength' => 10,
+	'lengthMenu' => [[10, 25, 50], [10, 25, 50]],
+	'order' => [[1, 'desc']],
+], JSON_UNESCAPED_SLASHES) ?></script>
+<div id="dataTables-scrolls" class="d-none">420</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>

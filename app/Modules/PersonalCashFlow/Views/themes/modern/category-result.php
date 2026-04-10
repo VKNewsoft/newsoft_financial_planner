@@ -91,7 +91,11 @@ $typeLabels = ['income' => 'Pemasukan', 'expense' => 'Pengeluaran'];
 						<tbody>
 							<?php foreach ($categories as $category): ?>
 								<tr>
-									<td><?= esc($typeLabels[$category['transaction_type']] ?? $category['transaction_type']) ?></td>
+									<td>
+										<span class="badge text-bg-<?= $category['transaction_type'] === 'income' ? 'success' : 'danger' ?>">
+											<?= esc($typeLabels[$category['transaction_type']] ?? $category['transaction_type']) ?>
+										</span>
+									</td>
 									<td>
 										<span class="pcf-category-chip">
 											<span class="pcf-category-dot" style="background: <?= esc($category['color'] ?: '#6c757d') ?>"></span>

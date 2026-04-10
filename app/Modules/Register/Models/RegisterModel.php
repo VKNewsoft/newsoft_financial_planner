@@ -17,6 +17,51 @@ use App\Libraries\Auth;
 
 class RegisterModel extends \App\Modules\Common\Models\BaseModel
 {
+	private function getDefaultModuleId(): ?int
+	{
+		$settingRegister = $this->getSettingRegistrasi();
+		if (!empty($settingRegister['id_module']) && is_numeric($settingRegister['id_module'])) {
+			return (int) $settingRegister['id_module'];
+		}
+
+		$module = $this->db->table('core_module')
+			->select('id_module')
+			->where('nama_module', 'builtin')
+			->get()
+			->getRowArray();
+
+		return $module ? (int) $module['id_module'] : null;
+	}
+
+	private function getDefaultRoleId(): ?int
+	{
+		$role = $this->db->table('core_role')
+			->select('id_role')
+			->where('nama_role', 'Pengguna Biasa')
+			->get()
+			->getRowArray();
+
+		if ($role) {
+			return (int) $role['id_role'];
+		}
+
+		$moduleId = $this->getDefaultModuleId();
+		if (!$moduleId) {
+			return null;
+		}
+
+		$this->db->table('core_role')->insert([
+			'id_module' => $moduleId,
+			'sistem' => 'core',
+			'nama_role' => 'Pengguna Biasa',
+			'judul_role' => 'Pengguna Biasa',
+			'keterangan' => 'Role default untuk registrasi pengguna baru'
+		]);
+
+		$idRole = $this->db->insertID();
+		return $idRole ? (int) $idRole : null;
+	}
+
 	/**
 	 * Mendapatkan user berdasarkan email
 	 * 
@@ -162,18 +207,22 @@ class RegisterModel extends \App\Modules\Common\Models\BaseModel
 		
 		// Ambil setting registrasi
 		$settingRegister = $this->getSettingRegistrasi();
-		$verified = $settingRegister['metode_aktivasi'] == 'langsung' ? 1 : 0;
+		$verified = 1;
+		$email = trim((string) $this->request->getPost('email'));
+		$nama = trim((string) $this->request->getPost('nama'));
 		
 		// Siapkan data user
 		$dataDb = [
-			'nama' => $this->request->getPost('nama'),
-			'email' => $this->request->getPost('email'),
-			'username' => $this->request->getPost('username'),
+			'id_company' => 0,
+			'access_company' => '0',
+			'nama' => $nama,
+			'email' => $email,
+			'username' => $email,
 			'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
 			'verified' => $verified,
 			'status' => 1,
 			'created' => date('Y-m-d H:i:s'),
-			'id_module' => $settingRegister['id_module']
+			'id_module' => 124
 		];
 
 		$insertUser = $this->db->table('core_user')->insert($dataDb);
@@ -184,54 +233,23 @@ class RegisterModel extends \App\Modules\Common\Models\BaseModel
 			$error = true;
 		} else {
 			// Assign default role
-			$setting = $this->db->table('core_setting')
-				->where('type', 'register')
-				->where('param', 'id_role')
-				->get()
-				->getRowArray();
-			
-			$idRole = $setting['value'];
-			
-			$this->db->table('core_user_role')->insert([
-				'id_user' => $idUser,
-				'id_role' => $idRole
-			]);
+			$idRole = $this->getDefaultRoleId();
+			if (!$idRole) {
+				$message['message'] = 'Role default registrasi tidak ditemukan. Silakan hubungi administrator.';
+				$error = true;
+			} else {
+				$this->db->table('core_user_role')->insert([
+					'id_user' => $idUser,
+					'id_role' => $idRole
+				]);
+			}
 			
 			// Proses berdasarkan metode aktivasi
-			if ($settingRegister['metode_aktivasi'] == 'manual') {
+			if (!$error && $settingRegister['metode_aktivasi'] == 'manual') {
 				$message['message'] = 'Terima kasih telah melakukan registrasi, aktivasi akun Anda menunggu persetujuan Administrator. Terima Kasih';
 				
-			} elseif ($settingRegister['metode_aktivasi'] == 'langsung') {
+			} elseif (!$error && $settingRegister['metode_aktivasi'] != 'manual') {
 				$message['message'] = 'Terima kasih telah melakukan registrasi, akun Anda otomatis aktif dan langsung dapat digunakan, silakan <a href="' . base_url() . '/login">login disini</a>';
-				
-			} elseif ($settingRegister['metode_aktivasi'] == 'email') {
-				// Generate token untuk email aktivasi
-				$auth = new Auth;
-				$token = $auth->generateDbToken();					
-				
-				$tokenData = [
-					'selector' => $token['selector'],
-					'token' => $token['db'],
-					'action' => 'register',
-					'id_user' => $idUser,
-					'created' => date('Y-m-d H:i:s'),
-					'expires' => date('Y-m-d H:i:s', strtotime('+1 hour'))
-				];
-				
-				$this->db->table('core_user_token')->insert($tokenData);
-				
-				// Kirim email konfirmasi
-				$sendEmail = $this->sendConfirmEmail($token, [
-					'nama' => $this->request->getPost('nama'),
-					'email' => $this->request->getPost('email')
-				]);
-			
-				if ($sendEmail['status'] == 'error') {
-					$message['message'] = 'Error: Link konfirmasi gagal dikirim... <strong>' . $sendEmail['message'] . '</strong>';
-					$error = true;
-				} else {
-					$message['message'] = 'Terima kasih telah melakukan registrasi, untuk memastikan bahwa kamu adalah pemilik alamat email <strong>' . $this->request->getPost('email') . '</strong>, mohon klik link konfirmasi yang baru saja kami kirimkan ke alamat email tersebut<br/><br/>Biasanya, email akan sampai kurang dari satu menit, namun jika lebih dari lima menit email belum sampai, coba cek folder spam. Jika email benar benar tidak sampai, silakan hubungi kami di support@newsoftdev.com';
-				}
 			}
 		}
 		

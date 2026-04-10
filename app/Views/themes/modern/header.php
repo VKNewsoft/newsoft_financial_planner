@@ -164,7 +164,6 @@ $user = $session->get('user');
 									<p><small>Nama Karyawan: <br /><?= $user['nama'] ?></small></p>
 								</div>
 							</li>
-							<li><a class="dropdown-item py-2" href="<?= $config->baseURL ?>hrm/profile">Ubah Profil</a></li>
 							<li><a class="dropdown-item py-2" href="<?= $config->baseURL ?>builtin/user/edit-password">Change Password</a></li>
 							<li><a class="dropdown-item py-2" href="<?= $config->baseURL ?>login/logout">Logout</a></li>
 						</ul>

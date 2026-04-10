@@ -22,9 +22,9 @@
 			<form method="post" action="" class="modern-login-form" novalidate>
 				<div class="form-field">
 					<label for="username-field" class="field-label">
-						<i class="fa fa-user"></i> Username
+						<i class="fa fa-user"></i> Email
 					</label>
-					<input type="text" id="username-field" name="username" value="<?= esc(old('username', '')) ?>" class="modern-input" placeholder="Masukkan username" aria-label="Username" required>
+					<input type="text" id="username-field" name="username" value="<?= esc(old('username', '')) ?>" class="modern-input" placeholder="Masukkan email Anda" aria-label="Email" autocomplete="username" required>
 				</div>
 				<div class="form-field">
 					<label for="password-field" class="field-label">
@@ -52,11 +52,9 @@
 					<a href="<?=$config->baseURL?>recovery" class="link-recovery">
 						<i class="fa fa-key"></i> Lupa Password?
 					</a>
-					<?php if ($setting_registrasi['enable'] == 'Y') { ?>
-						<a href="<?=$config->baseURL?>register" class="link-register">
-							<i class="fa fa-user-plus"></i> Daftar Akun
-						</a>
-					<?php }?>
+					<a href="<?=$config->baseURL?>register" class="link-register">
+						<i class="fa fa-user-plus"></i> Daftar Akun
+					</a>
 				</div>
 			</form>
 		</div>
