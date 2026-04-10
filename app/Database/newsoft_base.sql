@@ -341,7 +341,7 @@ CREATE TABLE `core_menu` (
   KEY `menu_menu` (`id_parent`),
   CONSTRAINT `menu_menu` FOREIGN KEY (`id_parent`) REFERENCES `core_menu` (`id_menu`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `menu_module` FOREIGN KEY (`id_module`) REFERENCES `core_module` (`id_module`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=171 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT COMMENT='Tabel menu aplikasi';
+) ENGINE=InnoDB AUTO_INCREMENT=172 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT COMMENT='Tabel menu aplikasi';
 
 /*Data for the table `core_menu` */
 
@@ -363,7 +363,8 @@ insert  into `core_menu`(`id_menu`,`nama_menu`,`id_menu_kategori`,`class`,`url`,
 (15,'Company',1,'fas fa-person-breastfeeding','#',NULL,13,1,0,1),
 (16,'Semua User',1,NULL,'builtin/user',5,17,1,0,2),
 (17,'Manajemen Aplikasi',1,'fas fa-mobile-screen-button','#',NULL,13,1,0,2),
-(18,'Security Monitor',1,'fas fa-shield-halved','securitymonitor',121,NULL,1,0,1);
+(18,'Security Monitor',1,'fas fa-shield-halved','securitymonitor',121,NULL,1,0,1),
+(171,'Personal Cash Flow',1,'fas fa-wallet','personal-cash-flow',124,NULL,1,0,3);
 
 /*Table structure for table `core_menu_kategori` */
 
@@ -417,7 +418,8 @@ insert  into `core_menu_role`(`id_menu`,`id_role`) values
 (12,1),
 (18,1),
 (15,1),
-(14,1);
+(14,1),
+(171,1);
 
 /*Table structure for table `core_module` */
 
@@ -434,7 +436,7 @@ CREATE TABLE `core_module` (
   UNIQUE KEY `module_nama` (`nama_module`),
   KEY `module_module_status` (`id_module_status`),
   CONSTRAINT `module_module_status` FOREIGN KEY (`id_module_status`) REFERENCES `core_module_status` (`id_module_status`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=124 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC COMMENT='Tabel modul aplikasi';
+) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC COMMENT='Tabel modul aplikasi';
 
 /*Data for the table `core_module` */
 
@@ -459,7 +461,8 @@ insert  into `core_module`(`id_module`,`nama_module`,`judul_module`,`id_module_s
 (80,'midtrans','CORE - Sample Uji Coba Midtrans',1,'Y','Module Sample Uji Coba Midtrans'),
 (94,'builtin/qrscan','CORE - QRSCAN Sample',1,'N','Module untuk scan QR'),
 (121,'securitymonitor','Security Monitor',1,'Y','-'),
-(123,'dashboard','Simple Dashboard',1,'Y','Module untuk menampilkan dashboard');
+(123,'dashboard','Simple Dashboard',1,'Y','Module untuk menampilkan dashboard'),
+(124,'personal-cash-flow','Personal Cash Flow',1,'Y','Module pencatatan pemasukan dan pengeluaran personal per user');
 
 /*Table structure for table `core_module_permission` */
 
@@ -474,7 +477,7 @@ CREATE TABLE `core_module_permission` (
   PRIMARY KEY (`id_module_permission`) USING BTREE,
   UNIQUE KEY `id_module_nama_permission` (`id_module`,`nama_permission`) USING BTREE,
   CONSTRAINT `module_permission_module` FOREIGN KEY (`id_module`) REFERENCES `core_module` (`id_module`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=450 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=454 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 /*Data for the table `core_module_permission` */
 
@@ -568,7 +571,11 @@ insert  into `core_module_permission`(`id_module_permission`,`id_module`,`nama_p
 (446,123,'create','Create Data','Hak akses untuk membuat data'),
 (447,123,'read_all','Read All Data','Hak akses untuk membaca semua data'),
 (448,123,'update_all','Update All Data','Hak akses untuk mengupdate semua data'),
-(449,123,'delete_all','Delete All Data','Hak akses untuk menghapus semua data');
+(449,123,'delete_all','Delete All Data','Hak akses untuk menghapus semua data'),
+(450,124,'create','Create Data','Hak akses untuk membuat transaksi personal cash flow'),
+(451,124,'read_own','Read Own Data','Hak akses untuk membaca transaksi miliknya sendiri'),
+(452,124,'update_own','Update Own Data','Hak akses untuk mengubah transaksi miliknya sendiri'),
+(453,124,'delete_own','Delete Own Data','Hak akses untuk menghapus transaksi miliknya sendiri');
 
 /*Table structure for table `core_module_status` */
 
@@ -715,7 +722,11 @@ insert  into `core_role_module_permission`(`id_role`,`id_module_permission`) val
 (1,446),
 (1,447),
 (1,448),
-(1,449);
+(1,449),
+(1,450),
+(1,451),
+(1,452),
+(1,453);
 
 /*Table structure for table `core_setting` */
 
@@ -882,6 +893,68 @@ CREATE TABLE `core_user_role` (
 
 insert  into `core_user_role`(`id_user`,`id_role`) values 
 (1,1);
+
+/*Table structure for table `personal_cash_flow_category` */
+
+DROP TABLE IF EXISTS `personal_cash_flow_category`;
+
+CREATE TABLE `personal_cash_flow_category` (
+  `id_category` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id_user` int(10) unsigned DEFAULT NULL,
+  `transaction_type` enum('income','expense') NOT NULL,
+  `category_name` varchar(100) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `color` varchar(20) DEFAULT '#6c757d',
+  `is_default` tinyint(1) NOT NULL DEFAULT 0,
+  `aktif` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_category`),
+  KEY `pcf_category_user` (`id_user`),
+  CONSTRAINT `pcf_category_user` FOREIGN KEY (`id_user`) REFERENCES `core_user` (`id_user`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4;
+
+/*Data for the table `personal_cash_flow_category` */
+
+insert  into `personal_cash_flow_category`(`id_category`,`id_user`,`transaction_type`,`category_name`,`description`,`color`,`is_default`,`aktif`,`created_at`,`updated_at`) values 
+(1,NULL,'expense','Makan','Pengeluaran makan dan minum','#ef4444',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(2,NULL,'expense','Operasional','Biaya operasional harian','#f97316',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(3,NULL,'expense','Listrik','Tagihan listrik dan utilitas','#eab308',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(4,NULL,'expense','Transportasi','Biaya perjalanan dan transportasi','#06b6d4',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(5,NULL,'expense','Belanja','Kebutuhan rumah tangga dan belanja','#8b5cf6',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(6,NULL,'income','Gaji','Pemasukan gaji utama','#22c55e',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(7,NULL,'income','Pendapatan Lain','Pemasukan selain gaji','#14b8a6',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(8,NULL,'income','Bonus','Bonus dan insentif','#0ea5e9',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00'),
+(9,NULL,'income','Investasi','Hasil investasi personal','#84cc16',1,1,'2026-01-01 00:00:00','2026-01-01 00:00:00');
+
+/*Table structure for table `personal_cash_flow_transaction` */
+
+DROP TABLE IF EXISTS `personal_cash_flow_transaction`;
+
+CREATE TABLE `personal_cash_flow_transaction` (
+  `id_transaction` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `id_user` int(10) unsigned NOT NULL,
+  `id_category` int(10) unsigned NOT NULL,
+  `transaction_type` enum('income','expense') NOT NULL,
+  `transaction_date` date NOT NULL,
+  `nominal` decimal(15,2) NOT NULL DEFAULT 0.00,
+  `description` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `id_user_input` int(10) unsigned DEFAULT NULL,
+  `id_user_update` int(10) unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `isDeleted` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id_transaction`),
+  KEY `pcf_transaction_user` (`id_user`),
+  KEY `pcf_transaction_category` (`id_category`),
+  KEY `pcf_transaction_input_user` (`id_user_input`),
+  KEY `pcf_transaction_update_user` (`id_user_update`),
+  CONSTRAINT `pcf_transaction_category` FOREIGN KEY (`id_category`) REFERENCES `personal_cash_flow_category` (`id_category`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `pcf_transaction_input_user` FOREIGN KEY (`id_user_input`) REFERENCES `core_user` (`id_user`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `pcf_transaction_update_user` FOREIGN KEY (`id_user_update`) REFERENCES `core_user` (`id_user`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `pcf_transaction_user` FOREIGN KEY (`id_user`) REFERENCES `core_user` (`id_user`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 /*Table structure for table `core_user_token` */
 
