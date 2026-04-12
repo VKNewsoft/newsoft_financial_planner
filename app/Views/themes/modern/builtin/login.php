@@ -5,6 +5,8 @@
 		<div class="logo-wrapper">
 			<img src="<?php echo $config->baseURL . '/public/images/' . $setting_aplikasi['logo_login']?>" alt="Logo" class="login-logo">
 		</div>
+		<h1 class="login-title">Financial Planner</h1>
+		<p class="login-tagline">Pantau arus kas pribadi, anggaran, dan target keuangan dari satu dashboard.</p>
 		<?php if (!empty($desc)) {
 			echo '<p class="login-subtitle">' . $desc . '</p>';
 		}?>
@@ -40,7 +42,7 @@
 
 				<div class="form-actions">
 					<button id="btn-submit-login" type="submit" class="btn-login-primary" name="submit">
-						<span>Login</span>
+						<span>Masuk ke Dashboard</span>
 						<i class="fa fa-arrow-right"></i>
 					</button>
 					<?php
@@ -63,28 +65,63 @@
 <style>
 /* Clean Modern Login - Light Theme */
 :root {
-	--login-primary: #4e73df;
-	--login-primary-hover: #2e59d9;
-	--login-text: #212529;
-	--login-muted: #6c757d;
-	--login-border: #e3e6f0;
-	--login-bg: #ffffff;
+	--login-primary: #0f766e;
+	--login-primary-hover: #0b5e58;
+	--login-accent: #f59e0b;
+	--login-text: #0f172a;
+	--login-muted: #64748b;
+	--login-border: rgba(148, 163, 184, 0.28);
+	--login-bg: rgba(255, 255, 255, 0.96);
 }
 
 .login-glass-container {
-	background: #ffffff;
+	background:
+		linear-gradient(145deg, rgba(255,255,255,0.98), rgba(240,253,250,0.92));
 	border: 1px solid var(--login-border);
-	border-radius: 12px;
-	padding: 40px 32px;
-	box-shadow: 0 0 20px rgba(0,0,0,0.08);
+	border-radius: 24px;
+	padding: 28px 32px 32px;
+	box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
 	position: relative;
-	max-width: 400px;
+	max-width: 460px;
+	overflow: hidden;
+}
+
+.login-glass-container:before {
+	content: "";
+	position: absolute;
+	inset: -80px auto auto -40px;
+	width: 180px;
+	height: 180px;
+	background: radial-gradient(circle, rgba(15,118,110,0.16), rgba(15,118,110,0));
+}
+
+.login-metrics {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 24px;
+	position: relative;
+	z-index: 1;
+}
+
+.login-metrics span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.2px;
+	background: rgba(15,118,110,0.09);
+	color: var(--login-primary);
 }
 
 .login-header {
 	text-align: center;
-	margin-bottom: 30px;
+	margin-bottom: 26px;
 	position: relative;
+	z-index: 1;
 }
 
 .logo-wrapper {
@@ -97,11 +134,18 @@
 }
 
 .login-title {
-	font-size: 26px;
-	font-weight: 700;
+	font-size: 30px;
+	font-weight: 800;
 	color: var(--login-text);
-	margin: 0 0 8px 0;
-	letter-spacing: 0.3px;
+	margin: 0 0 10px 0;
+	letter-spacing: -0.4px;
+}
+
+.login-tagline {
+	color: var(--login-muted);
+	font-size: 14px;
+	line-height: 1.6;
+	margin: 0 0 10px;
 }
 
 .login-subtitle {
@@ -157,10 +201,10 @@
 }
 
 .modern-input {
-	background: #ffffff;
+	background: rgba(255,255,255,0.92);
 	border: 1px solid var(--login-border);
-	border-radius: 8px;
-	padding: 12px 14px;
+	border-radius: 14px;
+	padding: 13px 15px;
 	color: var(--login-text);
 	font-size: 15px;
 	transition: all 0.2s ease;
@@ -173,7 +217,7 @@
 
 .modern-input:focus {
 	border-color: var(--login-primary);
-	box-shadow: 0 0 0 3px rgba(78,115,223,0.1);
+	box-shadow: 0 0 0 4px rgba(15,118,110,0.12);
 }
 
 .password-input-wrapper {
@@ -204,15 +248,15 @@
 
 .btn-login-primary {
 	width: 100%;
-	background: var(--login-primary);
+	background: linear-gradient(135deg, var(--login-primary), #14b8a6);
 	color: #ffffff;
 	border: none;
-	border-radius: 8px;
-	padding: 14px;
+	border-radius: 14px;
+	padding: 15px;
 	font-size: 15px;
-	font-weight: 600;
+	font-weight: 700;
 	cursor: pointer;
-	box-shadow: 0 2px 8px rgba(78,115,223,0.2);
+	box-shadow: 0 14px 28px rgba(15,118,110,0.25);
 	transition: all 0.2s ease;
 	display: flex;
 	align-items: center;
@@ -221,9 +265,8 @@
 }
 
 .btn-login-primary:hover {
-	background: var(--login-primary-hover);
 	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(78,115,223,0.3);
+	box-shadow: 0 18px 32px rgba(15,118,110,0.3);
 }
 
 .btn-login-primary:active {
@@ -254,14 +297,19 @@
 	text-decoration: underline;
 }
 
+.link-register i,
+.login-metrics i {
+	color: var(--login-accent);
+}
+
 /* Responsive */
 @media (max-width: 576px) {
 	.login-glass-container {
-		padding: 30px 24px;
+		padding: 24px 20px 26px;
 	}
 	
 	.login-title {
-		font-size: 22px;
+		font-size: 24px;
 	}
 	
 	.login-links {
