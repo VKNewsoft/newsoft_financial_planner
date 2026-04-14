@@ -40,12 +40,34 @@ Menampilkan ringkasan arus kas harian secara real-time, sehingga pengguna dapat 
 Pengguna dapat mencatat:
 - Pemasukan harian  
 - Pengeluaran harian  
+- Transfer antar cash account / wallet  
 
 Dirancang dengan pendekatan sederhana agar mudah digunakan oleh siapa saja tanpa latar belakang akuntansi.
 
 ---
 
-### **3. User Management**
+### **3. Cash Account / Wallet**
+
+Setiap transaksi kini terhubung ke wallet sehingga pencatatan kas menjadi lebih jelas:
+- CRUD wallet / cash account  
+- Saldo awal per wallet  
+- Summary saldo per wallet di dashboard  
+- Transfer A ke B dicatat otomatis sebagai pengeluaran di wallet asal dan pemasukan di wallet tujuan  
+
+---
+
+### **4. Report Cash Flow**
+
+Module report terpisah tersedia tanpa mengubah dashboard utama:
+- Daftar transaksi dengan filter tanggal, wallet, kategori, tipe, dan deskripsi  
+- Report transfer A ke B dengan filter wallet asal dan wallet tujuan  
+- Summary per wallet yang tetap menghitung saldo akhir berdasarkan seluruh transaksi wallet  
+- Desktop menggunakan DataTable server-side / lazy loading  
+- Mobile menggunakan card/list view dengan load more  
+
+---
+
+### **5. User Management**
 
 Mengelola akun pengguna menjadi lebih mudah:
 - Tambah, edit, hapus user  
@@ -54,7 +76,7 @@ Mengelola akun pengguna menjadi lebih mudah:
 
 ---
 
-### **4. Role Access & Permissions**
+### **6. Role Access & Permissions**
 
 Sistem hak akses yang fleksibel:
 - Multi level role  
@@ -63,7 +85,7 @@ Sistem hak akses yang fleksibel:
 
 ---
 
-### **5. Modular System**
+### **7. Modular System**
 
 - Modul dapat diaktifkan/nonaktifkan  
 - Struktur menu fleksibel  
@@ -75,6 +97,8 @@ Sistem hak akses yang fleksibel:
 
 - Antarmuka sederhana dan mudah digunakan  
 - Mobile-friendly (responsif di berbagai perangkat)  
+- Mendukung multi wallet / cash account  
+- Report transaksi dan transfer terpisah untuk data besar  
 - Sistem keamanan berbasis role & permission  
 - Struktur modular untuk pengembangan lanjutan  
 - Cocok untuk kebutuhan personal maupun pengembangan sistem lebih besar  

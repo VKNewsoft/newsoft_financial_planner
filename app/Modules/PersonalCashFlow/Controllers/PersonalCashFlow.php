@@ -40,6 +40,10 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 		$this->data['transactionCount'] = $this->model->countTransactions($period, $type);
 		$this->data['categoriesGrouped'] = $this->model->getCategoriesGrouped();
 		$this->data['transactionCategories'] = $this->model->getCategories();
+		$this->data['wallets'] = $this->model->getWallets();
+		$this->data['walletSummary'] = $this->model->getWalletSummary();
+		$this->data['transferSummary'] = $this->model->getTransferSummary($period);
+		$this->data['transferReport'] = $this->model->getTransferReport($period);
 		$this->data['msg'] = $this->session->getFlashdata('msg') ?: [];
 
 		$this->view('index.php', $this->data);
@@ -69,6 +73,11 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 			$typeLabel = $typeLabels[$transaction['transaction_type']] ?? $transaction['transaction_type'];
 			$color = esc($transaction['color'] ?: '#6c757d');
 			$description = esc($transaction['description']);
+			$walletLabel = esc($transaction['wallet_name'] ?: '-');
+			$walletMeta = 'Wallet: ' . $walletLabel;
+			if (!empty($transaction['transfer_wallet_name'])) {
+				$walletMeta .= ' | Transfer: ' . esc($transaction['transfer_wallet_name']);
+			}
 			$notes = esc($transaction['notes'] ?: '-');
 			$amount = 'Rp ' . number_format((float) $transaction['nominal'], 0, ',', '.');
 			$amountClass = $transaction['transaction_type'] === 'income' ? 'text-success' : 'text-danger';
@@ -79,7 +88,7 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 				'transaction_date' => esc($transaction['transaction_date']),
 				'transaction_type' => '<span class="badge text-bg-' . $badge . '">' . esc($typeLabel) . '</span>',
 				'category_name' => '<span class="pcf-category-chip"><span class="pcf-category-dot" style="background:' . $color . '"></span>' . esc($transaction['category_name']) . '</span>',
-				'description' => '<div class="pcf-transaction-desc"><div class="fw-semibold">' . $description . '</div><small class="text-muted">' . $notes . '</small></div>',
+				'description' => '<div class="pcf-transaction-desc"><div class="fw-semibold">' . $description . '</div><small class="text-muted">' . $walletMeta . '</small><small class="text-muted">' . $notes . '</small></div>',
 				'nominal' => '<div class="text-end fw-semibold ' . $amountClass . '">' . $amount . '</div>',
 				'ignore_search_action' => '<div class="btn-group btn-group-sm">'
 					. '<button type="button" class="btn btn-success btn-edit-transaction" data-id="' . $id . '">Edit</button>'
@@ -120,6 +129,8 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 				'transaction_badge' => (string) ($typeBadges[$transaction['transaction_type']] ?? 'secondary'),
 				'transaction_date' => (string) $transaction['transaction_date'],
 				'category_name' => (string) $transaction['category_name'],
+				'wallet_name' => (string) ($transaction['wallet_name'] ?: '-'),
+				'transfer_wallet_name' => (string) ($transaction['transfer_wallet_name'] ?: ''),
 				'color' => (string) ($transaction['color'] ?: '#6c757d'),
 				'description' => (string) $transaction['description'],
 				'notes' => (string) ($transaction['notes'] ?: '-'),
@@ -162,6 +173,16 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 		$this->view('category-result.php', $this->data);
 	}
 
+	public function wallets()
+	{
+		$this->hasPermissionPrefix('read');
+
+		$this->data['title'] = 'Wallet Personal Cash Flow';
+		$this->data['msg'] = $this->session->getFlashdata('msg') ?: [];
+		$this->data['wallets'] = $this->model->getWallets();
+		$this->view('wallet-result.php', $this->data);
+	}
+
 	public function deleteCategory()
 	{
 		$this->hasPermissionPrefix('delete');
@@ -173,6 +194,19 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 		$result = $this->model->deleteCategory((int) $this->request->getPost('id'));
 		$this->session->setFlashdata('msg', $result);
 		return redirect()->to(base_url('personal-cash-flow/categories'));
+	}
+
+	public function deleteWallet()
+	{
+		$this->hasPermissionPrefix('delete');
+
+		if (!$this->request->getPost('delete')) {
+			return redirect()->to(base_url('personal-cash-flow/wallets'));
+		}
+
+		$result = $this->model->deleteWallet((int) $this->request->getPost('id'));
+		$this->session->setFlashdata('msg', $result);
+		return redirect()->to(base_url('personal-cash-flow/wallets'));
 	}
 
 	public function ajaxGetTransactionForm()
@@ -200,6 +234,7 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 		$data = $this->data;
 		$data['transaction'] = $transaction;
 		$data['categories'] = $this->model->getCategoriesGrouped();
+		$data['wallets'] = $this->model->getWallets();
 		echo $this->fetchViewFile('themes/modern/transaction-modal-form.php', $data);
 	}
 
@@ -256,5 +291,42 @@ class PersonalCashFlow extends \App\Modules\Common\Controllers\BaseController
 		}
 
 		return $this->response->setJSON($this->model->saveCategory($idCategory));
+	}
+
+	public function ajaxGetWalletForm()
+	{
+		$this->hasPermissionPrefix('read');
+
+		$idWallet = (int) ($this->request->getGet('id') ?? 0);
+		$wallet = [
+			'wallet_name' => '',
+			'wallet_type' => 'cash',
+			'description' => '',
+			'initial_balance' => '',
+		];
+
+		if ($idWallet > 0) {
+			$this->hasPermissionPrefix('update');
+			$wallet = $this->model->getWalletById($idWallet);
+			if (!$wallet) {
+				return $this->response->setStatusCode(404)->setBody('Data wallet tidak ditemukan');
+			}
+		}
+
+		$data = $this->data;
+		$data['wallet'] = $wallet;
+		echo $this->fetchViewFile('themes/modern/wallet-modal-form.php', $data);
+	}
+
+	public function ajaxSaveWallet()
+	{
+		$idWallet = (int) ($this->request->getPost('id') ?? 0);
+		if ($idWallet > 0) {
+			$this->hasPermissionPrefix('update');
+		} else {
+			$this->hasPermissionPrefix('create');
+		}
+
+		return $this->response->setJSON($this->model->saveWallet($idWallet));
 	}
 }
