@@ -292,15 +292,6 @@ jQuery(document).ready(function () {
 				return;
 			}
 
-			if (frame.source) {
-				var parentAnchor = frame.source.querySelector(':scope > a');
-				if (parentAnchor && parentAnchor.getAttribute('href') && parentAnchor.getAttribute('href') !== '#') {
-					closeRadial();
-					goToHref(parentAnchor.getAttribute('href'));
-					return;
-				}
-			}
-
 			if (radialState.stack.length > 1) {
 				radialState.stack.pop();
 				radialState.page = 0;
