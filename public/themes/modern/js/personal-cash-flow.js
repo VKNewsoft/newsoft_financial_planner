@@ -112,6 +112,11 @@ jQuery(document).ready(function () {
 	}
 
 	function renderMobileTransactionCard(item) {
+		let walletMeta = $('<div>').text(item.wallet_name || '-').html();
+		if (item.transfer_wallet_name) {
+			walletMeta += ' -> ' + $('<div>').text(item.transfer_wallet_name).html();
+		}
+
 		return '' +
 			'<div class="pcf-mobile-item">' +
 				'<div class="pcf-mobile-item-head">' +
@@ -133,6 +138,10 @@ jQuery(document).ready(function () {
 					'<div>' +
 						'<span class="pcf-mobile-meta-label">Kategori</span>' +
 						'<span class="pcf-category-chip"><span class="pcf-category-dot" style="background:' + item.color + '"></span>' + $('<div>').text(item.category_name).html() + '</span>' +
+					'</div>' +
+					'<div>' +
+						'<span class="pcf-mobile-meta-label">Wallet</span>' +
+						'<div>' + walletMeta + '</div>' +
 					'</div>' +
 					'<div>' +
 						'<span class="pcf-mobile-meta-label">Catatan</span>' +
@@ -371,7 +380,27 @@ jQuery(document).ready(function () {
 		});
 	});
 
-	$('body').on('input', '#transaction-modal-form .numeric-only', function () {
+	$('body').on('click', '.btn-add-wallet', function (e) {
+		e.preventDefault();
+		openBootboxForm({
+			title: 'Tambah Wallet',
+			formUrl: cashFlowBaseUrl + '/ajaxGetWalletForm',
+			submitUrl: cashFlowBaseUrl + '/ajaxSaveWallet',
+			submitLabel: 'Simpan'
+		});
+	});
+
+	$('body').on('click', '.btn-edit-wallet', function (e) {
+		e.preventDefault();
+		openBootboxForm({
+			title: 'Edit Wallet',
+			formUrl: cashFlowBaseUrl + '/ajaxGetWalletForm?id=' + $(this).data('id'),
+			submitUrl: cashFlowBaseUrl + '/ajaxSaveWallet',
+			submitLabel: 'Update'
+		});
+	});
+
+	$('body').on('input', '#transaction-modal-form .numeric-only, #wallet-modal-form .numeric-only', function () {
 		this.value = formatRibuan(this.value);
 	});
 

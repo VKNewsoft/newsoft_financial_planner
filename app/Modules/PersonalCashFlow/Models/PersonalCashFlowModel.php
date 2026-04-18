@@ -31,8 +31,10 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		[$startDate, $endDate] = $this->getPeriodRange($period);
 
 		$builder = $this->db->table('personal_cash_flow_transaction a')
-			->select('a.*, c.category_name, c.color, c.is_default')
+			->select('a.*, c.category_name, c.color, c.is_default, w.wallet_name, wt.wallet_name AS transfer_wallet_name')
 			->join('personal_cash_flow_category c', 'c.id_category = a.id_category', 'left')
+			->join('personal_cash_flow_wallet w', 'w.id_wallet = a.id_wallet', 'left')
+			->join('personal_cash_flow_wallet wt', 'wt.id_wallet = a.id_wallet_transfer_target', 'left')
 			->where('a.id_user', $this->getCurrentUserId())
 			->where('a.isDeleted', 0)
 			->where('a.transaction_date >=', $startDate)
@@ -181,6 +183,70 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		return (int) ($this->session->get('user')['id_user'] ?? 0);
 	}
 
+	private function getNonTransferAggregateSqlCondition(): string
+	{
+		return 'id_wallet_transfer_target IS NULL';
+	}
+
+	private function isTransferCategoryName(string $categoryName): bool
+	{
+		return strtolower(trim($categoryName)) === 'transfer';
+	}
+
+	private function getTransferCategoryId(string $transactionType): int
+	{
+		$result = $this->db->table('personal_cash_flow_category')
+			->where('id_user', $this->getCurrentUserId())
+			->where('transaction_type', $transactionType)
+			->where('aktif', 1)
+			->where('LOWER(category_name) =', 'transfer')
+			->get()
+			->getRowArray();
+
+		if ($result) {
+			return (int) $result['id_category'];
+		}
+
+		$this->db->table('personal_cash_flow_category')->insert([
+			'id_user' => $this->getCurrentUserId(),
+			'transaction_type' => $transactionType,
+			'category_name' => 'Transfer',
+			'description' => 'Kategori internal untuk transfer wallet',
+			'color' => $transactionType === 'income' ? '#0ea5e9' : '#f97316',
+			'is_default' => 1,
+			'aktif' => 1,
+			'created_at' => date('Y-m-d H:i:s'),
+			'updated_at' => date('Y-m-d H:i:s'),
+		]);
+
+		return (int) $this->db->insertID();
+	}
+
+	private function findTransferPair(array $transaction): ?array
+	{
+		if (empty($transaction['id_wallet_transfer_target'])) {
+			return null;
+		}
+
+		$pairType = $transaction['transaction_type'] === 'expense' ? 'income' : 'expense';
+
+		$result = $this->db->table('personal_cash_flow_transaction')
+			->where('id_user', $this->getCurrentUserId())
+			->where('isDeleted', 0)
+			->where('transaction_type', $pairType)
+			->where('transaction_date', $transaction['transaction_date'])
+			->where('nominal', $transaction['nominal'])
+			->where('description', $transaction['description'])
+			->where('id_wallet', (int) $transaction['id_wallet_transfer_target'])
+			->where('id_wallet_transfer_target', (int) $transaction['id_wallet'])
+			->where('id_transaction !=', (int) $transaction['id_transaction'])
+			->orderBy('id_transaction', 'DESC')
+			->get()
+			->getRowArray();
+
+		return $result ?: null;
+	}
+
 	private function parseNominalInput($value): float
 	{
 		$value = trim((string) $value);
@@ -266,6 +332,7 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 	{
 		$builder = $this->db->table('personal_cash_flow_category')
 			->where('aktif', 1)
+			->where('LOWER(category_name) !=', 'transfer')
 			->groupStart()
 				->where('id_user', $this->getCurrentUserId())
 				->orWhere('id_user IS NULL', null, false)
@@ -281,6 +348,28 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			->orderBy('category_name', 'ASC')
 			->get()
 			->getResultArray();
+	}
+
+	public function getWallets(): array
+	{
+		return $this->db->table('personal_cash_flow_wallet')
+			->where('id_user', $this->getCurrentUserId())
+			->where('aktif', 1)
+			->orderBy('wallet_name', 'ASC')
+			->get()
+			->getResultArray();
+	}
+
+	public function getWalletById(int $idWallet): ?array
+	{
+		$result = $this->db->table('personal_cash_flow_wallet')
+			->where('id_wallet', $idWallet)
+			->where('id_user', $this->getCurrentUserId())
+			->where('aktif', 1)
+			->get()
+			->getRowArray();
+
+		return $result ?: null;
 	}
 
 	public function getCategoriesGrouped(): array
@@ -318,15 +407,101 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 	public function getTransactionById(int $idTransaction): ?array
 	{
 		$result = $this->db->table('personal_cash_flow_transaction a')
-			->select('a.*, c.category_name, c.color')
+			->select('a.*, c.category_name, c.color, w.wallet_name')
 			->join('personal_cash_flow_category c', 'c.id_category = a.id_category', 'left')
+			->join('personal_cash_flow_wallet w', 'w.id_wallet = a.id_wallet', 'left')
 			->where('a.id_transaction', $idTransaction)
 			->where('a.id_user', $this->getCurrentUserId())
 			->where('a.isDeleted', 0)
 			->get()
 			->getRowArray();
 
+		if ($result && !empty($result['id_wallet_transfer_target'])) {
+			$pair = $this->findTransferPair($result);
+			$result['transaction_mode'] = 'transfer';
+			$result['id_category_transfer_target'] = (int) ($pair['id_category'] ?? 0);
+		} elseif ($result) {
+			$result['transaction_mode'] = $result['transaction_type'];
+			$result['id_category_transfer_target'] = 0;
+		}
+
 		return $result ?: null;
+	}
+
+	public function getWalletSummary(): array
+	{
+		$userId = $this->getCurrentUserId();
+		$sql = 'SELECT
+					w.id_wallet,
+					w.wallet_name,
+					w.wallet_type,
+					w.description,
+					w.initial_balance,
+					COALESCE(SUM(CASE WHEN t.transaction_type = "income" AND t.id_wallet_transfer_target IS NULL THEN t.nominal ELSE 0 END), 0) AS total_income,
+					COALESCE(SUM(CASE WHEN t.transaction_type = "expense" AND t.id_wallet_transfer_target IS NULL THEN t.nominal ELSE 0 END), 0) AS total_expense,
+					COALESCE(SUM(CASE WHEN t.transaction_type = "income" THEN t.nominal ELSE 0 END), 0) AS ledger_income,
+					COALESCE(SUM(CASE WHEN t.transaction_type = "expense" THEN t.nominal ELSE 0 END), 0) AS ledger_expense
+				FROM personal_cash_flow_wallet w
+				LEFT JOIN personal_cash_flow_transaction t
+					ON t.id_wallet = w.id_wallet
+					AND t.id_user = w.id_user
+					AND t.isDeleted = 0
+				WHERE w.id_user = ?
+					AND w.aktif = 1
+				GROUP BY w.id_wallet, w.wallet_name, w.wallet_type, w.description, w.initial_balance
+				ORDER BY w.wallet_name ASC';
+
+		$rows = $this->db->query($sql, [$userId])->getResultArray();
+		foreach ($rows as &$row) {
+			$row['initial_balance'] = (float) $row['initial_balance'];
+			$row['total_income'] = (float) $row['total_income'];
+			$row['total_expense'] = (float) $row['total_expense'];
+			$row['ledger_income'] = (float) $row['ledger_income'];
+			$row['ledger_expense'] = (float) $row['ledger_expense'];
+			$row['balance'] = $row['initial_balance'] + $row['ledger_income'] - $row['ledger_expense'];
+		}
+
+		return $rows;
+	}
+
+	public function getTransferSummary(string $period): array
+	{
+		[$startDate, $endDate] = $this->getPeriodRange($period);
+		$sql = 'SELECT
+					COUNT(*) AS total_transfer,
+					COALESCE(SUM(a.nominal), 0) AS total_nominal
+				FROM personal_cash_flow_transaction a
+				WHERE a.id_user = ?
+					AND a.isDeleted = 0
+					AND a.transaction_type = "expense"
+					AND a.id_wallet_transfer_target IS NOT NULL
+					AND a.transaction_date >= ?
+					AND a.transaction_date <= ?';
+
+		$result = $this->db->query($sql, [$this->getCurrentUserId(), $startDate, $endDate])->getRowArray() ?: [];
+		return [
+			'total_transfer' => (int) ($result['total_transfer'] ?? 0),
+			'total_nominal' => (float) ($result['total_nominal'] ?? 0),
+		];
+	}
+
+	public function getTransferReport(string $period): array
+	{
+		[$startDate, $endDate] = $this->getPeriodRange($period);
+		return $this->db->table('personal_cash_flow_transaction a')
+			->select('a.id_transaction, a.transaction_date, a.nominal, a.description, a.notes, ws.wallet_name AS source_wallet_name, wt.wallet_name AS target_wallet_name')
+			->join('personal_cash_flow_wallet ws', 'ws.id_wallet = a.id_wallet', 'left')
+			->join('personal_cash_flow_wallet wt', 'wt.id_wallet = a.id_wallet_transfer_target', 'left')
+			->where('a.id_user', $this->getCurrentUserId())
+			->where('a.isDeleted', 0)
+			->where('a.transaction_type', 'expense')
+			->where('a.id_wallet_transfer_target IS NOT NULL', null, false)
+			->where('a.transaction_date >=', $startDate)
+			->where('a.transaction_date <=', $endDate)
+			->orderBy('a.transaction_date', 'DESC')
+			->orderBy('a.id_transaction', 'DESC')
+			->get()
+			->getResultArray();
 	}
 
 	public function getSummary(string $period): array
@@ -335,8 +510,8 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		$userId = $this->getCurrentUserId();
 
 		$sql = 'SELECT
-					COALESCE(SUM(CASE WHEN transaction_type = "income" THEN nominal ELSE 0 END), 0) AS total_income,
-					COALESCE(SUM(CASE WHEN transaction_type = "expense" THEN nominal ELSE 0 END), 0) AS total_expense,
+					COALESCE(SUM(CASE WHEN transaction_type = "income" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_income,
+					COALESCE(SUM(CASE WHEN transaction_type = "expense" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_expense,
 					COUNT(*) AS total_transaction
 				FROM personal_cash_flow_transaction
 				WHERE id_user = ?
@@ -358,8 +533,8 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		$userId = $this->getCurrentUserId();
 
 		$sql = 'SELECT
-					COALESCE(SUM(CASE WHEN transaction_type = "income" THEN nominal ELSE 0 END), 0) AS total_income,
-					COALESCE(SUM(CASE WHEN transaction_type = "expense" THEN nominal ELSE 0 END), 0) AS total_expense,
+					COALESCE(SUM(CASE WHEN transaction_type = "income" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_income,
+					COALESCE(SUM(CASE WHEN transaction_type = "expense" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_expense,
 					COUNT(*) AS total_transaction
 				FROM personal_cash_flow_transaction
 				WHERE id_user = ?
@@ -383,8 +558,8 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 
 		$sql = 'SELECT
 					DATE_FORMAT(transaction_date, "%Y-%m") AS month_key,
-					COALESCE(SUM(CASE WHEN transaction_type = "income" THEN nominal ELSE 0 END), 0) AS total_income,
-					COALESCE(SUM(CASE WHEN transaction_type = "expense" THEN nominal ELSE 0 END), 0) AS total_expense
+					COALESCE(SUM(CASE WHEN transaction_type = "income" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_income,
+					COALESCE(SUM(CASE WHEN transaction_type = "expense" AND ' . $this->getNonTransferAggregateSqlCondition() . ' THEN nominal ELSE 0 END), 0) AS total_expense
 				FROM personal_cash_flow_transaction
 				WHERE id_user = ?
 					AND isDeleted = 0
@@ -441,6 +616,9 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		$colors = [];
 
 		foreach ($rows as $row) {
+			if ($this->isTransferCategoryName((string) ($row['category_name'] ?? ''))) {
+				continue;
+			}
 			$labels[] = (string) $row['category_name'];
 			$totals[] = (float) $row['total_nominal'];
 			$colors[] = (string) ($row['color'] ?: '#6c757d');
@@ -541,13 +719,19 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 
 	private function validateTransactionPayload(int $idTransaction = 0): array
 	{
+		$transactionMode = (string) ($this->request->getPost('transaction_type') ?? '');
+		$baseTransactionType = $transactionMode === 'transfer' ? 'expense' : $transactionMode;
+
 		$validation = \Config\Services::validation();
-		$validation->setRule('transaction_type', 'Jenis Transaksi', 'required|in_list[income,expense]');
+		$validation->setRule('transaction_type', 'Jenis Transaksi', 'required|in_list[income,expense,transfer]');
 		$validation->setRule('transaction_date', 'Tanggal Transaksi', 'required|regex_match[/^\d{4}-\d{2}-\d{2}$/]');
-		$validation->setRule('id_category', 'Kategori', 'required|numeric');
+		$validation->setRule('id_wallet', 'Wallet', 'required|numeric');
 		$validation->setRule('nominal', 'Nominal', 'required');
 		$validation->setRule('description', 'Deskripsi', 'required|max_length[255]');
 		$validation->setRule('notes', 'Catatan', 'permit_empty');
+		if ($transactionMode !== 'transfer') {
+			$validation->setRule('id_category', 'Kategori', 'required|numeric');
+		}
 		$validation->withRequest($this->request)->run();
 
 		$errors = $validation->getErrors();
@@ -555,13 +739,31 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			return $errors;
 		}
 
-		$category = $this->getCategoryById((int) $this->request->getPost('id_category'));
-		if (!$category) {
-			return ['id_category' => 'Kategori tidak ditemukan atau tidak bisa diakses'];
+		if ($transactionMode !== 'transfer') {
+			$category = $this->getCategoryById((int) $this->request->getPost('id_category'));
+			if (!$category) {
+				return ['id_category' => 'Kategori tidak ditemukan atau tidak bisa diakses'];
+			}
+
+			if ($category['transaction_type'] !== $baseTransactionType) {
+				return ['transaction_type' => 'Jenis transaksi harus sesuai dengan kategori yang dipilih'];
+			}
 		}
 
-		if ($category['transaction_type'] !== $this->request->getPost('transaction_type')) {
-			return ['transaction_type' => 'Jenis transaksi harus sesuai dengan kategori yang dipilih'];
+		$wallet = $this->getWalletById((int) $this->request->getPost('id_wallet'));
+		if (!$wallet) {
+			return ['id_wallet' => 'Wallet tidak ditemukan atau tidak bisa diakses'];
+		}
+
+		if ($transactionMode === 'transfer') {
+			$targetWallet = $this->getWalletById((int) $this->request->getPost('id_wallet_transfer_target'));
+			if (!$targetWallet) {
+				return ['id_wallet_transfer_target' => 'Wallet tujuan transfer tidak ditemukan'];
+			}
+
+			if ((int) $wallet['id_wallet'] === (int) $targetWallet['id_wallet']) {
+				return ['id_wallet_transfer_target' => 'Wallet tujuan transfer harus berbeda'];
+			}
 		}
 
 		if ($idTransaction > 0 && !$this->getTransactionById($idTransaction)) {
@@ -583,10 +785,10 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 		}
 
 		$now = date('Y-m-d H:i:s');
+		$transactionMode = (string) $this->request->getPost('transaction_type');
 		$data = [
 			'id_user' => $this->getCurrentUserId(),
-			'id_category' => (int) $this->request->getPost('id_category'),
-			'transaction_type' => (string) $this->request->getPost('transaction_type'),
+			'id_wallet' => (int) $this->request->getPost('id_wallet'),
 			'transaction_date' => (string) $this->request->getPost('transaction_date'),
 			'nominal' => $this->parseNominalInput($this->request->getPost('nominal')),
 			'description' => trim((string) $this->request->getPost('description')),
@@ -603,27 +805,114 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			];
 		}
 
+		$this->db->transBegin();
+
+		if ($transactionMode === 'transfer') {
+			$sourceData = array_merge($data, [
+				'id_category' => $this->getTransferCategoryId('expense'),
+				'transaction_type' => 'expense',
+				'id_wallet_transfer_target' => (int) $this->request->getPost('id_wallet_transfer_target'),
+			]);
+			$targetData = array_merge($data, [
+				'id_category' => $this->getTransferCategoryId('income'),
+				'id_wallet' => (int) $this->request->getPost('id_wallet_transfer_target'),
+				'transaction_type' => 'income',
+				'id_wallet_transfer_target' => (int) $this->request->getPost('id_wallet'),
+			]);
+
+			if ($idTransaction > 0) {
+				$current = $this->getTransactionById($idTransaction);
+				if (!$current) {
+					$this->db->transRollback();
+					return ['status' => 'error', 'message' => 'Transaksi tidak ditemukan'];
+				}
+
+				$sourceTransaction = $current['transaction_mode'] === 'transfer' ? $current : null;
+				if (!$sourceTransaction || $sourceTransaction['transaction_type'] !== 'expense') {
+					$sourceTransaction = $this->findTransferPair($current);
+				}
+				$targetTransaction = $sourceTransaction ? $this->findTransferPair($sourceTransaction) : null;
+
+				if (!$sourceTransaction || !$targetTransaction) {
+					$this->db->transRollback();
+					return ['status' => 'error', 'message' => 'Pasangan transfer tidak ditemukan'];
+				}
+
+				$this->db->table('personal_cash_flow_transaction')
+					->where('id_transaction', $sourceTransaction['id_transaction'])
+					->where('id_user', $this->getCurrentUserId())
+					->update($sourceData);
+
+				$this->db->table('personal_cash_flow_transaction')
+					->where('id_transaction', $targetTransaction['id_transaction'])
+					->where('id_user', $this->getCurrentUserId())
+					->update($targetData);
+			} else {
+				$sourceData['id_user_input'] = $this->getCurrentUserId();
+				$sourceData['created_at'] = $now;
+				$targetData['id_user_input'] = $this->getCurrentUserId();
+				$targetData['created_at'] = $now;
+
+				$this->db->table('personal_cash_flow_transaction')->insert($sourceData);
+				$this->db->table('personal_cash_flow_transaction')->insert($targetData);
+			}
+
+			if (!$this->db->transStatus()) {
+				$this->db->transRollback();
+				return ['status' => 'error', 'message' => 'Transfer gagal disimpan'];
+			}
+
+			$this->db->transCommit();
+			return [
+				'status' => 'ok',
+				'message' => $idTransaction > 0 ? 'Transfer berhasil diperbarui' : 'Transfer berhasil ditambahkan',
+			];
+		}
+
+		$data['id_category'] = (int) $this->request->getPost('id_category');
+		$data['transaction_type'] = $transactionMode;
+		$data['id_wallet_transfer_target'] = null;
+		if ($idTransaction > 0) {
+			$current = $this->getTransactionById($idTransaction);
+			if ($current && !empty($current['id_wallet_transfer_target'])) {
+				$pair = $this->findTransferPair($current);
+				if ($pair) {
+					$this->db->table('personal_cash_flow_transaction')
+						->where('id_transaction', (int) $pair['id_transaction'])
+						->where('id_user', $this->getCurrentUserId())
+						->update([
+							'isDeleted' => 1,
+							'id_user_update' => $this->getCurrentUserId(),
+							'updated_at' => $now,
+						]);
+				}
+			}
+		}
+
 		if ($idTransaction > 0) {
 			$this->db->table('personal_cash_flow_transaction')
 				->where('id_transaction', $idTransaction)
 				->where('id_user', $this->getCurrentUserId())
 				->update($data);
 
-			return [
-				'status' => 'ok',
-				'message' => 'Transaksi berhasil diperbarui',
-			];
+			if (!$this->db->transStatus()) {
+				$this->db->transRollback();
+				return ['status' => 'error', 'message' => 'Transaksi gagal diperbarui'];
+			}
+			$this->db->transCommit();
+			return ['status' => 'ok', 'message' => 'Transaksi berhasil diperbarui'];
 		}
 
 		$data['id_user_input'] = $this->getCurrentUserId();
 		$data['created_at'] = $now;
 
 		$this->db->table('personal_cash_flow_transaction')->insert($data);
-
-		return [
-			'status' => 'ok',
-			'message' => 'Transaksi berhasil ditambahkan',
-		];
+		if (!$this->db->transStatus()) {
+			$this->db->transRollback();
+			return ['status' => 'error', 'message' => 'Transaksi gagal ditambahkan'];
+		}
+		$this->db->transCommit();
+		return ['status' => 'ok', 'message' => 'Transaksi berhasil ditambahkan'];
 	}
 
 	public function deleteTransaction(int $idTransaction): array
@@ -636,14 +925,33 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			];
 		}
 
+		$this->db->transBegin();
+		$updateData = [
+			'isDeleted' => 1,
+			'id_user_update' => $this->getCurrentUserId(),
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+
 		$this->db->table('personal_cash_flow_transaction')
 			->where('id_transaction', $idTransaction)
 			->where('id_user', $this->getCurrentUserId())
-			->update([
-				'isDeleted' => 1,
-				'id_user_update' => $this->getCurrentUserId(),
-				'updated_at' => date('Y-m-d H:i:s'),
-			]);
+			->update($updateData);
+
+		if (!empty($transaction['id_wallet_transfer_target'])) {
+			$pair = $this->findTransferPair($transaction);
+			if ($pair) {
+				$this->db->table('personal_cash_flow_transaction')
+					->where('id_transaction', (int) $pair['id_transaction'])
+					->where('id_user', $this->getCurrentUserId())
+					->update($updateData);
+			}
+		}
+
+		if (!$this->db->transStatus()) {
+			$this->db->transRollback();
+			return ['status' => 'error', 'message' => 'Transaksi gagal dihapus'];
+		}
+		$this->db->transCommit();
 
 		return [
 			'status' => 'ok',
@@ -740,6 +1048,10 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			return ['category_name' => 'Nama kategori sudah digunakan'];
 		}
 
+		if ($this->isTransferCategoryName((string) $this->request->getPost('category_name'))) {
+			return ['category_name' => 'Nama kategori Transfer digunakan khusus untuk sistem'];
+		}
+
 		return [];
 	}
 
@@ -825,5 +1137,106 @@ class PersonalCashFlowModel extends \App\Modules\Common\Models\BaseModel
 			'status' => 'ok',
 			'message' => 'Kategori berhasil dihapus',
 		];
+	}
+
+	private function validateWalletPayload(int $idWallet = 0): array
+	{
+		$validation = \Config\Services::validation();
+		$validation->setRule('wallet_name', 'Nama Wallet', 'required|max_length[100]');
+		$validation->setRule('wallet_type', 'Tipe Wallet', 'required|in_list[cash,bank,digital,savings,other]');
+		$validation->setRule('description', 'Deskripsi', 'permit_empty|max_length[255]');
+		$validation->setRule('initial_balance', 'Saldo Awal', 'required');
+		$validation->withRequest($this->request)->run();
+
+		$errors = $validation->getErrors();
+		if ($errors) {
+			return $errors;
+		}
+
+		$builder = $this->db->table('personal_cash_flow_wallet')
+			->where('id_user', $this->getCurrentUserId())
+			->where('aktif', 1)
+			->where('wallet_name', trim((string) $this->request->getPost('wallet_name')));
+
+		if ($idWallet > 0) {
+			$builder->where('id_wallet !=', $idWallet);
+		}
+
+		if ($builder->countAllResults() > 0) {
+			return ['wallet_name' => 'Nama wallet sudah digunakan'];
+		}
+
+		return [];
+	}
+
+	public function saveWallet(int $idWallet = 0): array
+	{
+		$formErrors = $this->validateWalletPayload($idWallet);
+		if ($formErrors) {
+			return [
+				'status' => 'error',
+				'message' => 'Data wallet belum valid',
+				'form_errors' => $formErrors,
+			];
+		}
+
+		$data = [
+			'id_user' => $this->getCurrentUserId(),
+			'wallet_name' => trim((string) $this->request->getPost('wallet_name')),
+			'wallet_type' => (string) $this->request->getPost('wallet_type'),
+			'description' => trim((string) $this->request->getPost('description')),
+			'initial_balance' => $this->parseNominalInput($this->request->getPost('initial_balance')),
+			'aktif' => 1,
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+
+		if ($idWallet > 0) {
+			$wallet = $this->getWalletById($idWallet);
+			if (!$wallet) {
+				return ['status' => 'error', 'message' => 'Wallet tidak ditemukan'];
+			}
+
+			$this->db->table('personal_cash_flow_wallet')
+				->where('id_wallet', $idWallet)
+				->where('id_user', $this->getCurrentUserId())
+				->update($data);
+
+			return ['status' => 'ok', 'message' => 'Wallet berhasil diperbarui'];
+		}
+
+		$data['created_at'] = date('Y-m-d H:i:s');
+		$this->db->table('personal_cash_flow_wallet')->insert($data);
+		return ['status' => 'ok', 'message' => 'Wallet berhasil ditambahkan'];
+	}
+
+	public function deleteWallet(int $idWallet): array
+	{
+		$wallet = $this->getWalletById($idWallet);
+		if (!$wallet) {
+			return ['status' => 'error', 'message' => 'Wallet tidak ditemukan'];
+		}
+
+		$transactionCount = $this->db->table('personal_cash_flow_transaction')
+			->where('id_user', $this->getCurrentUserId())
+			->where('isDeleted', 0)
+			->groupStart()
+				->where('id_wallet', $idWallet)
+				->orWhere('id_wallet_transfer_target', $idWallet)
+			->groupEnd()
+			->countAllResults();
+
+		if ($transactionCount > 0) {
+			return ['status' => 'error', 'message' => 'Wallet tidak bisa dihapus karena masih dipakai transaksi'];
+		}
+
+		$this->db->table('personal_cash_flow_wallet')
+			->where('id_wallet', $idWallet)
+			->where('id_user', $this->getCurrentUserId())
+			->update([
+				'aktif' => 0,
+				'updated_at' => date('Y-m-d H:i:s'),
+			]);
+
+		return ['status' => 'ok', 'message' => 'Wallet berhasil dihapus'];
 	}
 }

@@ -341,7 +341,7 @@ CREATE TABLE `core_menu` (
   KEY `menu_menu` (`id_parent`),
   CONSTRAINT `menu_menu` FOREIGN KEY (`id_parent`) REFERENCES `core_menu` (`id_menu`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `menu_module` FOREIGN KEY (`id_module`) REFERENCES `core_module` (`id_module`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=172 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT COMMENT='Tabel menu aplikasi';
+) ENGINE=InnoDB AUTO_INCREMENT=174 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT COMMENT='Tabel menu aplikasi';
 
 /*Data for the table `core_menu` */
 
@@ -364,7 +364,9 @@ insert  into `core_menu`(`id_menu`,`nama_menu`,`id_menu_kategori`,`class`,`url`,
 (16,'Semua User',1,NULL,'builtin/user',5,17,1,0,2),
 (17,'Manajemen Aplikasi',1,'fas fa-mobile-screen-button','#',NULL,13,1,0,2),
 (18,'Security Monitor',1,'fas fa-shield-halved','securitymonitor',121,NULL,1,0,1),
-(171,'Personal Cash Flow',1,'fas fa-wallet','personal-cash-flow',124,NULL,1,0,3);
+(171,'Personal Cash Flow',14,'fas fa-wallet','personal-cash-flow',124,NULL,1,0,3),
+(172,'Personal Cash Flow Report',14,'fas fa-file-invoice-dollar','personal-cash-flow-report',125,NULL,1,0,4),
+(173,'Update Struktur DB',1,'fas fa-database','update-struktur-db',126,17,1,0,6);
 
 /*Table structure for table `core_menu_kategori` */
 
@@ -383,7 +385,8 @@ CREATE TABLE `core_menu_kategori` (
 /*Data for the table `core_menu_kategori` */
 
 insert  into `core_menu_kategori`(`id_menu_kategori`,`nama_kategori`,`deskripsi`,`aktif`,`show_title`,`urut`) values 
-(1,'CORE - SYSTEM CONFIG','','Y','Y',1);
+(1,'CORE - SYSTEM CONFIG','','Y','Y',1),
+(14,'APPS - PERSONAL FINANCE','','Y','Y',1);
 
 /*Table structure for table `core_menu_role` */
 
@@ -419,7 +422,11 @@ insert  into `core_menu_role`(`id_menu`,`id_role`) values
 (18,1),
 (15,1),
 (14,1),
-(171,1);
+(171,1),
+(171,2),
+(172,1),
+(172,2),
+(173,1);
 
 /*Table structure for table `core_module` */
 
@@ -436,7 +443,7 @@ CREATE TABLE `core_module` (
   UNIQUE KEY `module_nama` (`nama_module`),
   KEY `module_module_status` (`id_module_status`),
   CONSTRAINT `module_module_status` FOREIGN KEY (`id_module_status`) REFERENCES `core_module_status` (`id_module_status`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC COMMENT='Tabel modul aplikasi';
+) ENGINE=InnoDB AUTO_INCREMENT=127 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC COMMENT='Tabel modul aplikasi';
 
 /*Data for the table `core_module` */
 
@@ -462,7 +469,9 @@ insert  into `core_module`(`id_module`,`nama_module`,`judul_module`,`id_module_s
 (94,'builtin/qrscan','CORE - QRSCAN Sample',1,'N','Module untuk scan QR'),
 (121,'securitymonitor','Security Monitor',1,'Y','-'),
 (123,'dashboard','Simple Dashboard',1,'Y','Module untuk menampilkan dashboard'),
-(124,'personal-cash-flow','Personal Cash Flow',1,'Y','Module pencatatan pemasukan dan pengeluaran personal per user');
+(124,'personal-cash-flow','Personal Cash Flow',1,'Y','Module pencatatan pemasukan dan pengeluaran personal per user'),
+(125,'personal-cash-flow-report','Personal Cash Flow Report',1,'Y','Module report transaksi, transfer, dan summary wallet personal cash flow'),
+(126,'update-struktur-db','Update Struktur DB',1,'Y','Module sinkronisasi schema dan data core database secara aman');
 
 /*Table structure for table `core_module_permission` */
 
@@ -477,7 +486,7 @@ CREATE TABLE `core_module_permission` (
   PRIMARY KEY (`id_module_permission`) USING BTREE,
   UNIQUE KEY `id_module_nama_permission` (`id_module`,`nama_permission`) USING BTREE,
   CONSTRAINT `module_permission_module` FOREIGN KEY (`id_module`) REFERENCES `core_module` (`id_module`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=454 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB AUTO_INCREMENT=462 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 /*Data for the table `core_module_permission` */
 
@@ -575,7 +584,15 @@ insert  into `core_module_permission`(`id_module_permission`,`id_module`,`nama_p
 (450,124,'create','Create Data','Hak akses untuk membuat transaksi personal cash flow'),
 (451,124,'read_own','Read Own Data','Hak akses untuk membaca transaksi miliknya sendiri'),
 (452,124,'update_own','Update Own Data','Hak akses untuk mengubah transaksi miliknya sendiri'),
-(453,124,'delete_own','Delete Own Data','Hak akses untuk menghapus transaksi miliknya sendiri');
+(453,124,'delete_own','Delete Own Data','Hak akses untuk menghapus transaksi miliknya sendiri'),
+(454,125,'create','Create Data','Hak akses untuk membuka aksi report personal cash flow'),
+(455,125,'read_own','Read Own Data','Hak akses untuk membaca report personal cash flow miliknya sendiri'),
+(456,125,'update_own','Update Own Data','Hak akses untuk mengubah preferensi report personal cash flow miliknya sendiri'),
+(457,125,'delete_own','Delete Own Data','Hak akses untuk menghapus preferensi report personal cash flow miliknya sendiri'),
+(458,126,'create','Create Data','Hak akses untuk membuat proses sinkronisasi struktur database'),
+(459,126,'read_all','Read All Data','Hak akses untuk melihat preview sinkronisasi struktur database'),
+(460,126,'update_all','Update All Data','Hak akses untuk mengeksekusi sinkronisasi struktur database'),
+(461,126,'delete_all','Delete All Data','Hak akses untuk menghapus log sinkronisasi struktur database');
 
 /*Table structure for table `core_module_status` */
 
@@ -727,7 +744,23 @@ insert  into `core_role_module_permission`(`id_role`,`id_module_permission`) val
 (1,450),
 (1,451),
 (1,452),
-(1,453);
+(1,453),
+(1,454),
+(1,455),
+(1,456),
+(1,457),
+(2,450),
+(2,451),
+(2,452),
+(2,453),
+(2,454),
+(2,455),
+(2,456),
+(2,457),
+(1,458),
+(1,459),
+(1,460),
+(1,461);
 
 /*Table structure for table `core_setting` */
 

@@ -5,6 +5,9 @@ $summary = $summary ?? ['total_income' => 0, 'total_expense' => 0, 'balance' => 
 $overallSummary = $overallSummary ?? ['total_income' => 0, 'total_expense' => 0, 'balance' => 0, 'total_transaction' => 0];
 $expenseCategoryChart = $expenseCategoryChart ?? ['labels' => [], 'totals' => [], 'colors' => []];
 $transactionCategories = $transactionCategories ?? [];
+$walletSummary = $walletSummary ?? [];
+$transferSummary = $transferSummary ?? ['total_transfer' => 0, 'total_nominal' => 0];
+$transferReport = $transferReport ?? [];
 $typeLabels = ['income' => 'Pemasukan', 'expense' => 'Pengeluaran'];
 $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 ?>
@@ -223,6 +226,43 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 .pcf-shell .pcf-mobile-loadmore {
 	display: none;
 }
+.pcf-shell .pcf-wallet-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 1rem;
+}
+.pcf-shell .pcf-wallet-card {
+	border: 1px solid #e8ece8;
+	border-radius: 1rem;
+	background: #fff;
+	box-shadow: 0 12px 28px rgba(39, 60, 48, 0.06);
+	padding: 1rem 1.1rem;
+}
+.pcf-shell .pcf-wallet-card-title {
+	font-weight: 700;
+	margin-bottom: .35rem;
+}
+.pcf-shell .pcf-wallet-card-type {
+	font-size: .8rem;
+	color: #667085;
+	margin-bottom: .7rem;
+}
+.pcf-shell .pcf-wallet-card-balance {
+	font-size: 1.35rem;
+	font-weight: 700;
+	margin-bottom: .8rem;
+}
+.pcf-shell .pcf-wallet-card-meta {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: .65rem;
+	font-size: .83rem;
+}
+.pcf-shell .pcf-wallet-card-meta span {
+	display: block;
+	color: #667085;
+	margin-bottom: .15rem;
+}
 @media (max-width: 991.98px) {
 	.pcf-shell .pcf-hero {
 		padding: 1.2rem;
@@ -286,7 +326,9 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 		</div>
 		<div class="pcf-hero-actions">
 			<button type="button" class="btn btn-success btn-sm btn-soft btn-add-transaction"><i class="fa fa-plus me-1"></i>Tambah Transaksi</button>
+			<button type="button" class="btn btn-outline-success btn-sm btn-soft btn-add-wallet"><i class="fa fa-wallet me-1"></i>Tambah Wallet</button>
 			<a href="<?= base_url('personal-cash-flow/categories') ?>" class="btn btn-outline-primary btn-sm btn-soft"><i class="fa fa-tags me-1"></i>Kelola Kategori</a>
+			<a href="<?= base_url('personal-cash-flow/wallets') ?>" class="btn btn-outline-primary btn-sm btn-soft"><i class="fa fa-university me-1"></i>Kelola Wallet</a>
 		</div>
 	</div>
 
@@ -366,6 +408,98 @@ $typeBadges = ['income' => 'success', 'expense' => 'danger'];
 					<div class="pcf-summary-value text-dark"><?= number_format((int) $summary['total_transaction'], 0, ',', '.') ?></div>
 				</div>
 			</div>
+		</div>
+	</div>
+
+	<div class="card pcf-chart-card mb-4">
+		<div class="card-header bg-white border-0 pt-4 px-4">
+			<h5 class="mb-1">Summary per Wallet</h5>
+			<p class="mb-0 pcf-section-note">Saldo wallet dihitung dari saldo awal ditambah pemasukan lalu dikurangi pengeluaran, sehingga transfer antar wallet tidak menambah total saldo secara ganda.</p>
+		</div>
+		<div class="card-body px-4 pb-4">
+			<?php if (!$walletSummary): ?>
+				<div class="alert alert-light border mb-0">Belum ada wallet aktif. Tambahkan wallet terlebih dahulu sebelum mencatat transaksi.</div>
+			<?php else: ?>
+				<div class="pcf-wallet-summary-grid">
+					<?php foreach ($walletSummary as $wallet): ?>
+						<div class="pcf-wallet-card">
+							<div class="pcf-wallet-card-title"><?= esc($wallet['wallet_name']) ?></div>
+							<div class="pcf-wallet-card-type"><?= esc(ucfirst($wallet['wallet_type'])) ?></div>
+							<div class="pcf-wallet-card-balance <?= $wallet['balance'] >= 0 ? 'text-primary' : 'text-warning' ?>">Rp <?= number_format((float) $wallet['balance'], 0, ',', '.') ?></div>
+							<div class="pcf-wallet-card-meta">
+								<div>
+									<span>Saldo Awal</span>
+									<div>Rp <?= number_format((float) $wallet['initial_balance'], 0, ',', '.') ?></div>
+								</div>
+								<div>
+									<span>Pemasukan</span>
+									<div class="text-success">Rp <?= number_format((float) $wallet['total_income'], 0, ',', '.') ?></div>
+								</div>
+								<div>
+									<span>Pengeluaran</span>
+									<div class="text-danger">Rp <?= number_format((float) $wallet['total_expense'], 0, ',', '.') ?></div>
+								</div>
+								<div>
+									<span>Deskripsi</span>
+									<div><?= esc($wallet['description'] ?: '-') ?></div>
+								</div>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</div>
+	</div>
+
+	<div class="card pcf-chart-card mb-4">
+		<div class="card-header bg-white border-0 pt-4 px-4">
+			<h5 class="mb-1">Report Transfer</h5>
+			<p class="mb-0 pcf-section-note">Transfer dipisahkan dari income dan expense utama, tetapi tetap tercermin pada saldo wallet asal dan tujuan.</p>
+		</div>
+		<div class="card-body px-4 pb-4">
+			<div class="row g-3 mb-3">
+				<div class="col-md-4">
+					<div class="pcf-wallet-card">
+						<div class="pcf-wallet-card-title">Total Transfer Periode</div>
+						<div class="pcf-wallet-card-balance text-primary"><?= number_format((int) $transferSummary['total_transfer'], 0, ',', '.') ?></div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="pcf-wallet-card">
+						<div class="pcf-wallet-card-title">Nilai Transfer Periode</div>
+						<div class="pcf-wallet-card-balance text-primary">Rp <?= number_format((float) $transferSummary['total_nominal'], 0, ',', '.') ?></div>
+					</div>
+				</div>
+			</div>
+			<?php if (!$transferReport): ?>
+				<div class="alert alert-light border mb-0">Belum ada transfer pada periode ini.</div>
+			<?php else: ?>
+				<div class="table-responsive">
+					<table class="table table-striped align-middle mb-0">
+						<thead>
+							<tr>
+								<th>Tanggal</th>
+								<th>Transfer</th>
+								<th>Deskripsi</th>
+								<th class="text-end">Nominal</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($transferReport as $transfer): ?>
+								<tr>
+									<td><?= esc($transfer['transaction_date']) ?></td>
+									<td><span class="pcf-category-chip"><?= esc($transfer['source_wallet_name']) ?> -> <?= esc($transfer['target_wallet_name']) ?></span></td>
+									<td>
+										<div class="fw-semibold"><?= esc($transfer['description']) ?></div>
+										<?php if (!empty($transfer['notes'])): ?><small class="text-muted"><?= esc($transfer['notes']) ?></small><?php endif; ?>
+									</td>
+									<td class="text-end fw-semibold text-primary">Rp <?= number_format((float) $transfer['nominal'], 0, ',', '.') ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
 		</div>
 	</div>
 
